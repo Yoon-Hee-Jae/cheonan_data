@@ -60,8 +60,10 @@ else:
     print("arr2에는 있지만 arr1에는 없는 값:", set2 - set1)
 
 
-# 데이터 전처리 - 2 상세주소 입력
+# 데이터 전처리 - 2 상세주소 입력 + 위도 경도 위치 열 추가
 
+# 카카오 api 불러와서 사용
+# 사용전에 홈페이지 들어가서 사용 설정 상태 on으로 설정
 import requests
 
 KAKAO_KEY = 'd222f0f01e3470ce2b8a863cc30b151e'
@@ -100,15 +102,73 @@ def get_location_by_keyword(keyword):
         print("검색 결과가 없습니다.")
         return None
 
-
-
 results = {}
 for place in place_names:
     addr = get_location_by_keyword(place)
     results[place] = addr
     print(f"{place} => {addr}")
-results
 
-# results에 {장소명: 주소} 저장
+results # results에 {장소명: 주소} 저장
+type(results)
+results['배방1교차로']['address_name']
 
+# 상세주소 열 추가
+results.get('배방1교차로')
 
+def get_detailed_address(place):
+    info = results.get(place)
+    if info:
+        return info['address_name']  # 지번 주소만 반환
+    else:
+        return None
+
+# 새 컬럼 추가
+df2['시작지점_상세주소'] = df2['시작지점'].apply(get_detailed_address)
+df2['도착지점_상세주소'] = df2['도착지점'].apply(get_detailed_address)
+df2['도착지점_상세주소']
+
+# 위도 경도 열 추가 총 4개 ( 시작지점xy, 도착지점xy)
+
+def get_x(place):
+    info = results.get(place)
+    if info:
+        return info.get('x')
+    return None
+
+def get_y(place):
+    info = results.get(place)
+    if info:
+        return info.get('y')
+    return None
+
+df2['시작지점_x'] = df2['시작지점'].apply(get_x)
+df2['시작지점_y'] = df2['시작지점'].apply(get_y)
+df2['도착지점_x'] = df2['도착지점'].apply(get_x)
+df2['도착지점_y'] = df2['도착지점'].apply(get_y)
+
+# 위도, 경도 컬럼 타입 확인
+print(df2['시작지점_y'].dtype)
+print(df2['시작지점_x'].dtype)
+
+# 숫자형으로 강제 변환 (변환 불가능한 값은 NaN 처리)
+df2['시작지점_y'] = pd.to_numeric(df2['시작지점_y'], errors='coerce')
+df2['시작지점_x'] = pd.to_numeric(df2['시작지점_x'], errors='coerce')
+
+# 변환 후 NaN값 있는 행 제거
+df2 = df2.dropna(subset=['시작지점_y', '시작지점_x'])
+
+# 지도에 시각화
+import plotly.express as px
+
+fig = px.scatter_map(
+    df2,
+    lat='시작지점_y',
+    lon='시작지점_x',
+    hover_name='시작지점',
+    zoom=12,
+    height=600
+)
+
+fig.update_layout(mapbox_style="open-street-map")
+
+fig.show()
