@@ -264,6 +264,13 @@ df5['lat'], df5['lon'] = zip(*[
 # 오래 걸려서 데이터프레임으로 저장
 df5.to_csv("df5_school.csv", index=False, encoding="utf-8-sig")
 
+# 킥라니 주차장 
+df6 = pd.read_excel('kickrani.xlsx')
+df6.info()
+# 2번쨰 행부터 불러오기
+df6 = pd.read_excel("kickrani.xlsx", header=1)
+df6.info()
+
 #######################################################################
 # 시각화
 fig = go.Figure()
@@ -293,7 +300,7 @@ fig.add_trace(go.Scattermapbox(
     lat=df4['위도'],
     lon=df4['경도'],
     mode='markers',
-    marker=dict(size=7, color='green', opacity=0.6),
+    marker=dict(size=10, color='green', opacity=0.6),
     text=df4['설치위치주소'],  # 마우스 올리면 관리기관 표시
     name='CCTV 위치'
 ))
@@ -303,10 +310,21 @@ fig.add_trace(go.Scattermapbox(
     lat=df5['lat'],
     lon=df5['lon'],
     mode='markers',
-    marker=dict(size=7, color='purple', opacity=0.6),
-    text=df5['주소'],  # 마우스 올리면 관리기관 표시
-    name=' 위치'
+    marker=dict(size=10, color='purple', opacity=0.6),
+    text=df5['구분'],  # 마우스 올리면 관리기관 표시
+    name='학교 위치'
 ))
+
+# 5) 킥라니 위치 시각화
+fig.add_trace(go.Scattermapbox(
+    lat=df6['위도'],
+    lon=df6['경도'],
+    mode='markers',
+    marker=dict(size=10, color='black', opacity=0.6),
+    text=df6['주차가능 대수'],  # 마우스 올리면 관리기관 표시
+    name='킥라니 주차장 위치'
+))
+
 
 
 # 레이아웃 설정
