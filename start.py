@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.ticker as ticker
+
 # 윈도우: Malgun Gothic / 맥: AppleGothic
 plt.rc('font', family='Malgun Gothic')  # 또는 'AppleGothic'
 plt.rc('axes', unicode_minus=False)     # 마이너스 기호 깨짐 방지
@@ -9,125 +10,105 @@ plt.rc('axes', unicode_minus=False)     # 마이너스 기호 깨짐 방지
 df = pd.read_excel('main_dataset.xlsx') # 교통사고 데이터
 df2 = pd.read_excel('traffic_data.xlsx') # 교통량 데이터
 
-df.info()
-df2.info()
-len(df2['구간명'].unique())
+############################################################################################
 
-# '발생년월'을 datetime 형식으로 변환
-df['발생년월_dt'] = pd.to_datetime(df['발생년월'], format='%Y년 %m월')
-# 시간순 정렬
-df.sort_values('발생년월_dt',inplace=True)
-# 월별 건수 집계 (시간순)
-counts = df['발생년월_dt'].value_counts().sort_index()
-# 교통사고 시간별 시각화
-plt.figure(figsize=(12, 6))
-sns.barplot(x=counts.index.strftime('%Y-%m'), y=counts.values, palette='viridis')
-plt.xticks(rotation=45)
-plt.xlabel('발생년월')
-plt.ylabel('사고 건수')
-plt.title('발생년월별 사고 건수')
-# ✅ y축 간격 줄이기 (예: 100 단위)
-plt.gca().yaxis.set_major_locator(ticker.MultipleLocator(25))
-plt.show()
+# 데이터 전처리
 
-# 시군구별 교통사고 건수 집계
-counts = df['시군구'].value_counts()
-# 시군구별 시각화
-plt.figure(figsize=(12, 6))
-sns.barplot(x=counts.index, y=counts.values, palette='viridis')
-plt.xticks(rotation=45)
-plt.xlabel('시군구')
-plt.ylabel('사고 건수')
-plt.title('시군구별 교통사고 건수')
-plt.show()
+# 데이터 전처리-1
 
-# 가해자차종/ 피해자차종 차종 시각화
-# 데이터 집계
-counts_gahae = df['가해운전자 차종'].value_counts()
-counts_pihae = df['피해운전자 차종'].value_counts()
+# '구간명' 시작지점, 도착지점으로 구분
+# 정규표현식 사용해서 시작지점과 도착지점 칼럼 새로 추가
+df2[['시작지점','도착지점']] = df2['구간명'].str.split(' -> ',expand=True)
+# 두 지점 모두 65개의 지점이 있으며 완전 동알함
+len(df2['시작지점'].unique()) # 65
+len(df2['도착지점'].unique()) # 65
+# 값이 동일한지 확인
+arr1 = ['이마트앞교차로서측', '배방1교차로', '동극섬유', '장재2교차로', '신방삼거리', '새말사거리',
+        '청룡지하차도', '청삼교차로', '천안역앞교차로', '방죽안오거리', '동서고가교동측', '동서고가교서측',
+        '서부대로사거리', '은총교', '시민문화여성회관사거리', '인쇄창사거리', '카페베네천안두정점', '성성고가차도',
+        '대전충남양돈농협신두정지점', '대우1차아파트107동', '두정역삼거리', '천안로사거리', '터미널사거리',
+        '입장교차로', '석문교차로', '천안IC앞', '봉정사거리', '구상골사거리', '백석사거리', '백석요양원',
+        'KB국민은행천안백석종합금융센터', '운동장사거리', '교보사거리', '버들육거리', '업성동삼거리', '성성2교차로',
+        '불당아이파크아파트', '고속철도사거리', '시청앞사거리', '불당행복주유소', '천고사거리', '한올수예',
+        '북부고가교', '쌍용동사거리', '일봉산사거리', '두정지하차도사거리', '손수남황태전문점', '북부지하차도',
+        '쌍용삼거리', 'IBK기업은행천안쌍용지점', '산내들유치원', '삼일원앙아파트101동', '음봉로교차로',
+        '용연마을삼거리', '역말오거리', '쌍용지하차도앞교차로', '천안지하차도', '도로원점삼거리', '구성삼거리',
+        '남천안IC', '수헐교차로', '대림한내아파트', '충무로사거리', '충절오거리', '삼룡사거리']
 
-# 가해운전자 차종 시각화
-plt.figure(figsize=(12, 5))
-sns.barplot(x=counts_gahae.index, y=counts_gahae.values, palette='Reds')
-plt.xticks(rotation=45)
-plt.title('가해운전자 차종별 사고 건수')
-plt.xlabel('차종')
-plt.ylabel('사고 건수')
-plt.show()
+arr2 = ['배방1교차로', '이마트앞교차로서측', '동극섬유', '신방삼거리', '장재2교차로', '새말사거리',
+        '청룡지하차도', '방죽안오거리', '천안역앞교차로', '동서고가교서측', '동서고가교동측', '은총교',
+        '서부대로사거리', '시민문화여성회관사거리', '인쇄창사거리', '성성고가차도', '카페베네천안두정점',
+        '대전충남양돈농협신두정지점', '대우1차아파트107동', '두정역삼거리', '천안IC앞', '터미널사거리',
+        '천안로사거리', '석문교차로', '입장교차로', '봉정사거리', '백석사거리', '구상골사거리', '백석요양원',
+        '운동장사거리', 'KB국민은행천안백석종합금융센터', '버들육거리', '교보사거리', '성성2교차로', '업성동삼거리',
+        '고속철도사거리', '불당아이파크아파트', '시청앞사거리', '불당행복주유소', '한올수예', '천고사거리',
+        '북부고가교', '음봉로교차로', '쌍용동사거리', '일봉산사거리', '충무로사거리', '용연마을삼거리',
+        '두정지하차도사거리', '손수남황태전문점', '북부지하차도', '쌍용삼거리', '삼일원앙아파트101동',
+        'IBK기업은행천안쌍용지점', '산내들유치원', '청삼교차로', '역말오거리', '쌍용지하차도앞교차로',
+        '천안지하차도', '도로원점삼거리', '구성삼거리', '남천안IC', '수헐교차로', '대림한내아파트', '충절오거리',
+        '삼룡사거리']
 
-# 피해운전자 차종 시각화
-plt.figure(figsize=(12, 5))
-sns.barplot(x=counts_pihae.index, y=counts_pihae.values, palette='Blues')
-plt.xticks(rotation=45)
-plt.title('피해운전자 차종별 사고 건수')
-plt.xlabel('차종')
-plt.ylabel('사고 건수')
-plt.show()
+# 집합(set)으로 변환하여 비교
+set1 = set(arr1)
+set2 = set(arr2)
+
+if set1 == set2:
+    print("두 배열에 포함된 값들은 완전히 동일합니다.")
+else:
+    print("두 배열에 포함된 값들이 다릅니다.")
+    print("arr1에는 있지만 arr2에는 없는 값:", set1 - set2)
+    print("arr2에는 있지만 arr1에는 없는 값:", set2 - set1)
 
 
-df2['구간명'].value_counts()
+# 데이터 전처리 - 2 상세주소 입력
 
-# 교차로 사고 데이터만 필터링
-df.head()
-df['도로형태'].unique()
-df_cross = df[df['도로형태'].str.startswith('교차로')]
-df_cross.reset_index(inplace=True,drop=True)
-df_cross # 교차로 사고 데이터프레임
+import requests
 
-# 교차로에서 많이 사고가 나타나는 차종 유형 
-counts_type = df_cross['가해운전자 차종'].value_counts()
-sns.barplot(x=counts_type.index, y=counts_type.values, palette='Blues')
-plt.xticks(rotation=45)
-plt.title('교차로 가해운전자 차종별 사고 건수')
-plt.xlabel('차종')
-plt.ylabel('사고 건수')
-plt.show()
+KAKAO_KEY = 'd222f0f01e3470ce2b8a863cc30b151e'
 
-# 단일로 사고 데이터만 필터링
-df_straight = df[df['도로형태'].str.startswith('단일로')]
-df_straight.reset_index(inplace=True,drop=True)
-df_straight # 단일로 사고 데이터프레임
-# 단일로에서 많이 사고가 나타나는 차종 유형 
-counts_type = df_straight['가해운전자 차종'].value_counts()
-sns.barplot(x=counts_type.index, y=counts_type.values, palette='Blues')
-plt.xticks(rotation=45)
-plt.title('단일로 가해운전자 차종별 사고 건수')
-plt.xlabel('차종')
-plt.ylabel('사고 건수')
-plt.show()
+place_names = ['배방1교차로', '이마트앞교차로서측', '동극섬유', '신방삼거리', '장재2교차로', '새말사거리',
+        '청룡지하차도', '방죽안오거리', '천안역앞교차로', '동서고가교서측', '동서고가교동측', '은총교',
+        '서부대로사거리', '시민문화여성회관사거리', '인쇄창사거리', '성성고가차도', '카페베네천안두정점',
+        '대전충남양돈농협신두정지점', '대우1차아파트107동', '두정역삼거리', '천안IC앞', '터미널사거리',
+        '천안로사거리', '석문교차로', '입장교차로', '봉정사거리', '백석사거리', '구상골사거리', '백석요양원',
+        '운동장사거리', 'KB국민은행천안백석종합금융센터', '버들육거리', '교보사거리', '성성2교차로', '업성동삼거리',
+        '고속철도사거리', '불당아이파크아파트', '시청앞사거리', '불당행복주유소', '한올수예', '천고사거리',
+        '북부고가교', '음봉로교차로', '쌍용동사거리', '일봉산사거리', '충무로사거리', '용연마을삼거리',
+        '두정지하차도사거리', '손수남황태전문점', '북부지하차도', '쌍용삼거리', '삼일원앙아파트101동',
+        'IBK기업은행천안쌍용지점', '산내들유치원', '청삼교차로', '역말오거리', '쌍용지하차도앞교차로',
+        '천안지하차도', '도로원점삼거리', '구성삼거리', '남천안IC', '수헐교차로', '대림한내아파트', '충절오거리',
+        '삼룡사거리']
+len(place_names)
 
-# 교통량 많은 구간 
-len(df2['구간명'].unique())
-df2['구간명'].value_counts()
-df2_group = df2.groupby(['도로명','구간명'])['교통량(대)'].mean().reset_index()
-df2_group.head(30)
-df2_group.sort_values('교통량(대)',ascending=False).head(30)
-
-df_cross
-
-counts = df_cross['발생년월_dt'].value_counts().sort_index()
-# 교통사고 시간별 시각화
-plt.figure(figsize=(12, 6))
-sns.barplot(x=counts.index.strftime('%Y-%m'), y=counts.values, palette='viridis')
-plt.xticks(rotation=45)
-plt.xlabel('발생년월')
-plt.ylabel('사고 건수')
-plt.title('발생년월별 사고 건수')
-# ✅ y축 간격 줄이기 (예: 100 단위)
-plt.gca().yaxis.set_major_locator(ticker.MultipleLocator(25))
-plt.show()
-
-df.columns
-df['피해운전자 차종'].value_counts()
-df['가해운전자 차종'].value_counts()
-
-df.info()
-df2.info()
-
-df2_group
-
-636.2
+def get_location_by_keyword(keyword):
+    url = 'https://dapi.kakao.com/v2/local/search/keyword.json'
+    headers = {"Authorization": f"KakaoAK {KAKAO_KEY}"}
+    params = {'query': keyword, 'size': 5}
+    res = requests.get(url, headers=headers, params=params)
+    if res.status_code != 200:
+        print(f"Error: {res.status_code}")
+        return None
+    data = res.json()
+    if data['documents']:
+        for doc in data['documents']:
+            print(f"Name: {doc['place_name']}")
+            print(f"Address: {doc.get('road_address_name') or doc.get('address_name')}")
+            print(f"Lat,Lon: {doc['y']}, {doc['x']}")
+            print('---')
+        return data['documents'][0]  # 첫 번째 결과 반환
+    else:
+        print("검색 결과가 없습니다.")
+        return None
 
 
+
+results = {}
+for place in place_names:
+    addr = get_location_by_keyword(place)
+    results[place] = addr
+    print(f"{place} => {addr}")
+results
+
+# results에 {장소명: 주소} 저장
 
 
