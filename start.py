@@ -327,6 +327,8 @@ danger_zone.info()
 danger_2024 = danger_zone[danger_zone['연도'] == 2024]
 danger_2024.shape # 54개 사고 다발 구간
 danger_2024['구분'].value_counts() 
+danger_zone.to_csv('all_zone.csv', index=False, encoding='cp949')
+
 
 
 
@@ -356,7 +358,7 @@ fig.add_trace(go.Scattermapbox(
     lat=df3['위도'],
     lon=df3['경도'],
     mode='markers',
-    marker=dict(size=7, color='yellow', opacity=0.6),
+    marker=dict(size=7, color='pink', opacity=0.6),
     text=df3['설치형태'],  # 마우스 올리면 관리기관 표시
     name='가로등 위치'
 ))
