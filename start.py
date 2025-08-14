@@ -385,6 +385,17 @@ fig.add_trace(go.Scattermapbox(
     name='킥라니 주차장 위치'
 ))
 
+# 6) 사고다발구역 시각화
+all_zone = pd.read_csv('all_zone.csv',encoding='cp949')
+fig.add_trace(go.Scattermapbox(
+    all_zone['위도'],
+    all_zone['경도'],
+    mode='markers',
+    marker=dict(size=10, color='black', opacity=0.6),
+    text=all_zone['지점명'],  # 마우스 올리면 관리기관 표시
+    name='사고다발구역 주차장 위치'
+))
+
 
 
 # 레이아웃 설정
@@ -578,3 +589,129 @@ plt.xlabel('위험도 점수')
 plt.ylabel('가로등 개수')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show()
+
+# 군집화 진행
+df_000.info()
+df_000['위험도(100점)'].describe()
+
+from sklearn.cluster import KMeans
+import plotly.express as px
+
+# 1) 위험도 점수만 사용
+X = df_000[['위험도(100점)']].values
+
+# 2) K-Means 군집화 (5개 군집)
+kmeans = KMeans(n_clusters=5, random_state=42)
+df_000['risk_cluster'] = kmeans.fit_predict(X)
+
+# 3) 군집별 평균 위험도 확인 (낮음→높음 순으로 정렬)
+cluster_order = df_000.groupby('risk_cluster')['위험도(100점)'].mean().sort_values().index
+df_000['risk_cluster_ordered'] = df_000['risk_cluster'].apply(lambda x: list(cluster_order).index(x))
+###############################################################################
+
+# 
+# 4) 색상 범위 지정 (파랑 → 빨강)
+color_scale = px.colors.sequential.Bluered[::]  # Bluered를 뒤집어서 파랑→빨강
+
+# 5) 지도 시각화
+fig = px.scatter_mapbox(
+    df_000,
+    lat='위도',
+    lon='경도',
+    color='risk_cluster_ordered',
+    size='위험도(100점)',
+    hover_data=['설치형태','위험도(100점)'],
+    zoom=12,
+    height=800,
+    color_continuous_scale=color_scale
+)
+
+fig.update_layout(
+    mapbox_style="open-street-map",
+    margin={"r":0,"t":0,"l":0,"b":0}
+)
+
+fig.show()
+
+# 학교 같은 것도 같이 표시
+
+import plotly.graph_objects as go
+
+fig = go.Figure()
+
+# 1) 가로등 군집 색상
+# 군집 색상 범위 (파랑 → 빨강)
+cluster_colors = px.colors.sequential.Bluered  # 뒤집지 않음
+df_000['cluster_color'] = df_000['risk_cluster_ordered'] / df_000['risk_cluster_ordered'].max()
+
+fig.add_trace(go.Scattermapbox(
+    lat=df_000['위도'],
+    lon=df_000['경도'],
+    mode='markers',
+    marker=dict(
+        size=7,
+        color=df_000['cluster_color'],  # 색상 적용
+        colorscale=cluster_colors,
+        opacity=0.8
+        # colorbar 제거
+    ),
+    text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
+    name='가로등 위치'
+))
+# 3) CCTV
+fig.add_trace(go.Scattermapbox(
+    lat=df4['위도'],
+    lon=df4['경도'],
+    mode='markers',
+    marker=dict(size=10, color='green', opacity=0.6),
+    text=df4['설치위치주소'],
+    name='CCTV 위치'
+))
+
+# 4) 학교
+fig.add_trace(go.Scattermapbox(
+    lat=df5['lat'],
+    lon=df5['lon'],
+    mode='markers',
+    marker=dict(size=10, color='yellow', opacity=0.6),
+    text=df5['구분'],
+    name='학교 위치'
+))
+
+# 5) 킥라니
+df6 = pd.read_excel('kickrani.xlsx',header=1)
+fig.add_trace(go.Scattermapbox(
+    lat=df6['위도'],
+    lon=df6['경도'],
+    mode='markers',
+    marker=dict(size=10, color='black', opacity=0.6),
+    text=df6['주차가능 대수'].astype(str),
+    name='킥라니 주차장 위치'
+))
+
+# 6) 사고다발구역
+all_zone = pd.read_csv('all_zone.csv',encoding='cp949')
+fig.add_trace(go.Scattermapbox(
+    lat=all_zone['위도'],
+    lon=all_zone['경도'],
+    mode='markers',
+    marker=dict(size=10, color='gray', opacity=0.6),
+    text=all_zone['지점명'],
+    name='사고다발구역'
+))
+
+# 레이아웃
+fig.update_layout(
+    mapbox_style="open-street-map",
+    mapbox_zoom=12,
+    mapbox_center={"lat": df2_group['시작지점_y'].mean(), "lon": df2_group['시작지점_x'].mean()},
+    height=800,
+    margin={"r":0,"t":0,"l":0,"b":0}
+)
+
+fig.show()
+
+
+df_000['risk_cluster'].value_counts()
+
+all_zone['연도'].value_counts()
