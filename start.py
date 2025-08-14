@@ -271,6 +271,42 @@ df6.info()
 df6 = pd.read_excel("kickrani.xlsx", header=1)
 df6.info()
 
+# 이륜차 사고 다발 지역
+df7 = pd.read_csv('motorcycle.csv', encoding='cp949')
+df7.info()
+df7.head()
+
+df7 = df7[df7['시도시군구명'].str.contains('천안시')]
+df7['구분'] = '이륜차 사고다발지역'
+df7.head()
+
+# 보행자 사고 다발 지역
+df8 = pd.read_csv('pedstrians.csv', encoding='cp949')
+df8.info()
+df8.head()
+df8 = df8[df8['시도시군구명'].str.contains('천안시')]
+df8['구분'] = '보행자 사고다발지역'
+
+# 음주운전 사고 다발 지역
+df9 = pd.read_csv('drunk.csv',encoding='cp949')
+df9 = df9[df9['시도시군구명'].str.contains('천안시')]
+df9['구분'] = '음주운전 사고다발지역'
+
+# 화물차 사고 다발 지역
+df10 =  pd.read_csv('truck.csv',encoding='cp949')
+df10 = df10[df10['시도시군구명'].str.contains('천안시')]
+df10['구분'] = '화물차 사고다발지역'
+
+# 사고다발지역 데이터프레임 생성
+danger_zone = pd.concat([df7, df8], ignore_index=True)
+danger_zone = pd.concat([danger_zone, df9], ignore_index=True)
+danger_zone = pd.concat([danger_zone, df10], ignore_index=True)
+danger_zone['구분'].unique()
+
+danger_zone.to_csv('danger_zone.csv', index=False, encoding='cp949')
+
+df999 = pd.read_csv('danger_zone.csv',encoding='cp949')
+df999
 #######################################################################
 # 시각화
 fig = go.Figure()
@@ -340,3 +376,4 @@ fig.update_layout(
 )
 
 fig.show()
+
