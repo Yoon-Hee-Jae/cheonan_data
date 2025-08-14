@@ -302,8 +302,15 @@ danger_zone = pd.concat([df7, df8], ignore_index=True)
 danger_zone = pd.concat([danger_zone, df9], ignore_index=True)
 danger_zone = pd.concat([danger_zone, df10], ignore_index=True)
 danger_zone['구분'].unique()
-
+danger_zone.info()
+danger_zone['사고다발지id'] = danger_zone['사고다발지id'].astype(str)
+danger_zone['연도'] = danger_zone['사고다발지id'].str.extract(r'^(\d{4})')
+danger_zone['연도'] = danger_zone['연도'].astype(int)
+danger_zone = danger_zone[danger_zone['연도']>=2021].reset_index(drop=True)
+danger_zone = danger_zone.sort_values('연도').reset_index(drop=True)
+danger_zone
 danger_zone.to_csv('danger_zone.csv', index=False, encoding='cp949')
+danger_zone[danger_zone['연도']==2024]
 
 df999 = pd.read_csv('danger_zone.csv',encoding='cp949')
 df999
