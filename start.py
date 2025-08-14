@@ -500,3 +500,81 @@ youngchan = youngchan[['주변 학교 수','가장 가까운 학교와의 거리
 df3 = pd.concat([df3, youngchan], axis=1)
 
 df3.to_csv('main_data_0814.csv', index=False) # 최종 데이터프레임
+
+df3.info()
+#########################################################3
+## 위험도 점수 산출
+from sklearn.preprocessing import MinMaxScaler
+
+# 숫자가 낮을수록 위험인 컬럼
+low_risk_high = ['근처 가로등수', '근처 CCTV개수', '가장가까운_사고다발지역_거리(m)', '가장 가까운 학교와의 거리']
+
+# 숫자가 높을수록 위험인 컬럼
+high_risk_high = ['근처 킥라니주차장개수', '300m내_사고다발지역_개수', '주변 학교 수', '광원 등급']
+
+# 가중치 (합 = 1)
+weights = {
+    '근처 가로등수': 0.2,
+    '가장가까운_사고다발지역_거리(m)': 0.15,
+    '300m내_사고다발지역_개수': 0.15,
+    '근처 CCTV개수': 0.1,
+    '주변 학교 수': 0.1,
+    '가장 가까운 학교와의 거리': 0.1,
+    '광원 등급': 0.1,
+    '근처 킥라니주차장개수': 0.1
+}
+
+df_scaled = df3.copy()
+
+# 정규화
+scaler = MinMaxScaler()
+for col in low_risk_high:
+    # 낮을수록 위험 → 역변환
+    df_scaled[col+'_scaled'] = 1 - scaler.fit_transform(df_scaled[[col]])
+
+for col in high_risk_high:
+    # 높을수록 위험 → 그대로 스케일링
+    df_scaled[col+'_scaled'] = scaler.fit_transform(df_scaled[[col]])
+
+# 위험도 점수 계산
+risk_score = 0
+for col, w in weights.items():
+    risk_score += df_scaled[col+'_scaled'] * w
+
+df3['위험도점수'] = risk_score * 100  # 0~100점
+
+# 확인
+df3.head()
+### 희재 점수
+plt.figure(figsize=(8,5))
+plt.hist(df3['위험도점수'], bins=20, color='orange', edgecolor='black')
+plt.title('가로등 위험도 점수 분포')
+plt.xlabel('위험도 점수')
+plt.ylabel('가로등 개수')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+df3[df3['위험도점수']>=68] # 127개
+
+# 영찬이 점수
+df_000 = pd.read_csv('충청남도 천안시_가로등_위험도_20240729.csv')
+df_000['위험도(100점)']
+
+plt.figure(figsize=(8,5))
+plt.hist(df_000['위험도(100점)'], bins=20, color='orange', edgecolor='black')
+plt.title('가로등 위험도 점수 분포')
+plt.xlabel('위험도 점수')
+plt.ylabel('가로등 개수')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show() # 168개
+
+df_000[df_000['위험도(100점)']>=68]
+
+# 지원누나 점수
+df_222 = pd.read_csv('점수화_ver.1.csv',encoding='cp949')
+plt.figure(figsize=(8,5))
+plt.hist(df_222['총합_score'], bins=20, color='orange', edgecolor='black')
+plt.title('가로등 위험도 점수 분포')
+plt.xlabel('위험도 점수')
+plt.ylabel('가로등 개수')
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
