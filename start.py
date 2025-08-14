@@ -312,8 +312,31 @@ danger_zone
 danger_zone.to_csv('danger_zone.csv', index=False, encoding='cp949')
 danger_zone[danger_zone['연도']==2024]
 
-df999 = pd.read_csv('danger_zone.csv',encoding='cp949')
-df999
+danger_zone
+# 영찬 지원누나 사고 다발 구간 합치기
+danger_jiwon = pd.read_csv('jiwon_danger_zone.csv',encoding='cp949')
+danger_youngchan = pd.read_csv('youngchan_danger_zone.csv')
+danger_jiwon.columns
+danger_youngchan.columns
+danger_zone.columns
+danger_youngchan=danger_youngchan.drop('법규위반', axis=1)
+
+danger_zone = pd.concat([danger_zone, danger_youngchan], ignore_index=True)
+danger_zone = pd.concat([danger_zone, danger_jiwon], ignore_index=True)
+danger_zone.info()
+danger_2024 = danger_zone[danger_zone['연도'] == 2024]
+danger_2024.shape # 54개 사고 다발 구간
+danger_2024['구분'].value_counts() 
+
+
+
+
+
+
+
+
+
+
 #######################################################################
 # 시각화
 fig = go.Figure()
