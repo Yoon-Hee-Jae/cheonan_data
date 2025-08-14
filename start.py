@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.ticker as ticker
+import numpy as np
 
 # 윈도우: Malgun Gothic / 맥: AppleGothic
 plt.rc('font', family='Malgun Gothic')  # 또는 'AppleGothic'
@@ -327,16 +328,7 @@ danger_zone.info()
 danger_2024 = danger_zone[danger_zone['연도'] == 2024]
 danger_2024.shape # 54개 사고 다발 구간
 danger_2024['구분'].value_counts() 
-danger_zone.to_csv('all_zone.csv', index=False, encoding='cp949')
-
-
-
-
-
-
-
-
-
+danger_zone.to_csv('all_zone.csv', index=False, encoding='cp949') # 사고다발구간 최종 데이터프레임
 
 
 #######################################################################
@@ -409,3 +401,102 @@ fig.update_layout(
 
 fig.show()
 
+############################################################################################
+# 반경 300m 내 가로등 개수추가
+
+# 가로등 데이터프레임에서 위도 경도 설치형태만 남기기
+df3 = df3[['위도','경도','설치형태']]
+df3
+
+df3.info()
+
+from sklearn.neighbors import BallTree
+
+# 위경도를 라디안으로 변환
+coords = np.radians(df3[['위도', '경도']].values)
+
+# BallTree 생성 (haversine 거리 사용)
+tree = BallTree(coords, metric='haversine')
+
+# 검색 반경 (300m → km → 라디안)
+radius = 0.3 / 6371.0  # 지구 반지름 6371km
+
+# 각 좌표에 대해 반경 내 포인트 개수 검색
+counts = tree.query_radius(coords, r=radius, count_only=True)
+
+# 결과 저장 (자기 자신 포함이므로 -1)
+df3['근처 가로등수'] = counts - 1
+
+print(df3.head())
+df3['근처 가로등수'].describe()
+
+#################################################################################################
+# 반경 300m 내 cctv 수 추가
+df4.info()
+df4_1 = df4[['위도','경도']]
+# 과속카메라 추가
+cctv_2 = pd.read_csv('cctv_2.csv')
+cctv_2.info()
+cctv_2.head()
+cctv_2 = cctv_2[['위도','경도']]
+cctv = pd.concat([df4_1,cctv_2], ignore_index=True)
+cctv.info()
+
+# 위도·경도 → 라디안 변환
+lamp_coords_rad = np.radians(df3[['위도', '경도']].values)   # 가로등 좌표
+cctv_coords_rad = np.radians(cctv[['위도', '경도']].values)   # CCTV 좌표
+
+# CCTV 좌표로 BallTree 생성
+tree_cctv = BallTree(cctv_coords_rad, metric='haversine')
+
+# 반경 300m (0.3km) → 라디안 변환
+EARTH_RADIUS_KM = 6371.0
+radius_rad = 0.3 / EARTH_RADIUS_KM
+
+# 각 가로등 좌표에서 반경 내 CCTV 개수 구하기
+cctv_counts = tree_cctv.query_radius(lamp_coords_rad, r=radius_rad, count_only=True)
+
+# 결과를 '근처 CCTV개수' 열로 추가
+df3['근처 CCTV개수'] = cctv_counts
+
+# 확인
+print(df3.head())
+df3.describe()
+
+#############################################################################
+# 반경 300m 내 킥보드 주차장
+df6 = df6[['위도','경도']]
+df6
+
+# 위도·경도 → 라디안 변환
+lamp_coords_rad = np.radians(df3[['위도', '경도']].values)   # 가로등 좌표
+cctv_coords_rad = np.radians(df6[['위도', '경도']].values)   # CCTV 좌표
+
+# CCTV 좌표로 BallTree 생성
+tree_cctv = BallTree(cctv_coords_rad, metric='haversine')
+
+# 반경 300m (0.3km) → 라디안 변환
+EARTH_RADIUS_KM = 6371.0
+radius_rad = 0.3 / EARTH_RADIUS_KM
+
+# 각 가로등 좌표에서 반경 내 CCTV 개수 구하기
+cctv_counts = tree_cctv.query_radius(lamp_coords_rad, r=radius_rad, count_only=True)
+
+# 결과를 '근처 CCTV개수' 열로 추가
+df3['근처 킥라니주차장개수'] = cctv_counts
+
+# 확인
+print(df3.head())
+df3.describe()
+
+##################################################################################
+# 지원 누나
+jiwon = pd.read_csv('accident_traffic.csv',encoding='cp949')
+jiwon = jiwon[['300m내_사고다발지역_개수','가장가까운_사고다발지역_거리(m)']]
+df3 = pd.concat([df3, jiwon], axis=1)
+# 영찬
+youngchan = pd.read_csv('youngchan.csv')
+youngchan = youngchan[['주변 학교 수','가장 가까운 학교와의 거리','광원 등급']]
+df3 = pd.concat([df3, youngchan], axis=1)
+
+df3.to_csv('main_data_0814.csv', index=False) # 최종 데이터프레임
