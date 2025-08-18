@@ -1,3 +1,79 @@
+---
+title: "안전한 야간 운전을 위한 위험구역 시각화 및 경로 추천"
+format: 
+  revealjs:
+    code-fold: true
+    echo: true
+jupyter: python3
+---
+
+## 목차
+
+1.  주제선정이유
+2.  분석내용
+3.  정책제언
+
+## 1. 주제선정이유
+
+-   충청남도 내 교통사고 발생이 가장 큰 도시
+
+-   전체 교통사고량의 40%가 야간 발생
+
+## 2. 분석내용
+
+-   총 6개 항목을 기준으로, 도로별 위험도 점수화 진행
+
+    -   가로등 개수, CCTV, 학교, 킥보드주차장, 사고다발구역, 가로등 성능
+
+-   위 6개 항목을 기준으로 분석 진행
+
+## (1) 가로등 개수
+
+```{python}
+
+```
+
+## (2) CCTV
+
+```{python}
+
+```
+
+## (3) 학교
+
+```{python}
+
+```
+
+## (4) 킥보드 주차장
+
+```{python}
+
+```
+
+## (5) 사고다발구역
+
+```{python}
+
+```
+
+## (6) 가로등 성능
+
+```{python}
+
+```
+
+## (7) 위험도 점수 스케일링 및 기준
+
+
+
+# 최종 위험도 점수 (100점 만점)
+
+
+
+## (8) 위험구역 시각화
+
+```{python}
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -716,40 +792,12 @@ df_000['risk_cluster'].value_counts()
 
 all_zone['연도'].value_counts()
 
-df70 = df_000[df_000['위험도(100점)']>=70]
-
-df_000.sort_values('위험도(100점)',inplace=True)
-df_000 = df_000.reset_index(drop=True)
-df_000
-
-df_000
-
-# 예: df70['위험도'] 컬럼 기준
-q85 = df_000['위험도(100점)'].quantile(0.99)
-
-# 상위 25% 추출
-df_top85 = df_000[df_000['위험도(100점)'] >= 60]
-
-# 예: df70['위험도'] 컬럼 기준
-q15 = df_000['위험도(100점)'].quantile(0.01)
-
-# 상위 25% 추출
-df_top15 = df_000[df_000['위험도(100점)'] <= 40]
 
 
+```
 
-fig.add_trace(go.Scattermapbox(
-    lat=df_top85['위도'],
-    lon=df_top85['경도'],
-    mode='markers',
-    marker=dict(size=10, color='orange', opacity=0.6),
-))
+## 4. 안전운행 경로 추천
 
-fig.add_trace(go.Scattermapbox(
-    lat=df_top15['위도'],
-    lon=df_top15['경도'],
-    mode='markers',
-    marker=dict(size=10, color='pink', opacity=0.6),
-))
+```{python}
 
-
+```
