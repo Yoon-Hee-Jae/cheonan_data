@@ -384,15 +384,13 @@ fig.add_trace(go.Scattermapbox(
     text=df6['주차가능 대수'],  # 마우스 올리면 관리기관 표시
     name='킥라니 주차장 위치'
 ))
-
-# 6) 사고다발구역 시각화
-all_zone = pd.read_csv('all_zone.csv',encoding='cp949')
+# 사고다발구역 시각화
 fig.add_trace(go.Scattermapbox(
-    all_zone['위도'],
-    all_zone['경도'],
+    lat=danger_zone['위도'],
+    lon=danger_zone['경도'],
     mode='markers',
     marker=dict(size=10, color='black', opacity=0.6),
-    text=all_zone['지점명'],  # 마우스 올리면 관리기관 표시
+    text=danger_zone['지점명'],  # 마우스 올리면 지점명 표시
     name='사고다발구역 주차장 위치'
 ))
 
@@ -715,3 +713,38 @@ fig.show()
 df_000['risk_cluster'].value_counts()
 
 all_zone['연도'].value_counts()
+
+
+# 소상공인
+
+import requests
+import pandas as pd
+import urllib.parse
+
+# 인증키 (반드시 URL 인코딩)
+API_KEY = "f18c559e1359a185424db892f70d3b9b57f8b74b03303d2b82cdf554cad92a78"
+API_KEY_ENC = urllib.parse.quote_plus(API_KEY)
+
+# API URL
+url = "https://apis.data.go.kr/B553077/api/open/sdsc2/ppltnStats"
+
+params = {
+    "serviceKey": API_KEY_ENC,  # 인증키
+    "pageNo": 1,
+    "numOfRows": 100,
+    "divId": "signguCd",   # 행정구분 (시군구 단위)
+    "key": "44130",        # 천안시 행정코드
+    "type": "json"         # JSON 형식 응답
+}
+
+res = requests.get(url, params=params, verify=False)
+
+print("status:", res.status_code)
+print("response:", res.text[:300])  # 응답 일부 확인
+
+try:
+    data = res.json()
+    df = pd.DataFrame(data['body']['items'])
+    print(df.head())
+except Exception as e:
+    print("JSON 변환 실패:", e)
