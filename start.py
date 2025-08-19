@@ -614,13 +614,7 @@ df_new["위험도(100점)"] = (
     r_light   * W["light"]
 ).round(2)
 
-# 5) CSV 저장
-out_path = "새로운 위험도.csv"
-df.to_csv(out_path, index=False, encoding="utf-8-sig")
-print("✅ 저장 완료:", out_path)
-
-df_new
-sns.histplot(df_filtered['위험도(100점)'], bins=30, kde=True)  # kde=True: 밀도선 추가
+sns.histplot(df_new['위험도(100점)'], bins=30, kde=True)  # kde=True: 밀도선 추가
 plt.title("위도 히스토그램")
 plt.show()
 
