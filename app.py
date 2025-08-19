@@ -10,87 +10,107 @@ from shiny import App, Inputs, Outputs, Session, ui
 
 
 def server(input: Inputs, output: Outputs, session: Session) -> None:
-    # shiny + plotly
-    from shiny import App, ui, render
+    from shiny import App, ui, reactive, render
     import plotly.graph_objects as go
+    import pandas as pd
 
     # ------------------------
-    # 샘플 데이터 (실제 CSV 대신)
+    # 1. 데이터 로드
     # ------------------------
-    # 가로등
-    df_000 = {'lat':[36.82,36.825], 'lon':[127.12,127.125], 'name':['가로등1','가로등2']}
-    # CCTV
-    df4 = {'lat':[36.823,36.827], 'lon':[127.122,127.127], 'name':['CCTV1','CCTV2']}
-    # 학교
-    df_천안 = {'lat':[36.824,36.828], 'lon':[127.123,127.128], 'name':['학교1','학교2']}
-    # 킥라니
-    df6 = {'lat':[36.826,36.829], 'lon':[127.124,127.129], 'name':['킥라니1','킥라니2']}
+    df_lamp = pd.read_csv('가로등위험도최종데이터.csv')
+    df_cctv = pd.read_csv('cctv최종데이터.csv')
+    df_school = pd.read_csv('학교최종데이터.csv')
+    df_kickrani = pd.read_excel('kickrani.xlsx', header=1)
 
     # ------------------------
-    # UI
+    # 2. UI 정의
     # ------------------------
     app_ui = ui.page_fluid(
-        ui.h2("안전한 야간운전을 위한 위험구역 시각화"),
+        ui.h1("안전한 야간운전을 위한 위험구역 시각화", style="text-align:center; margin-bottom:30px;"),
+
         ui.row(
-            ui.column(3,
+            ui.column(3,  # 사이드바
+                ui.h3("표시할 시설 선택"),
                 ui.input_checkbox_group(
                     "facility",
-                    "표시할 시설 선택",
-                    choices=["가로등","CCTV","학교","킥라니"],
-                    selected=["가로등","CCTV","학교","킥라니"]
+                    "시설",
+                    choices=["가로등", "CCTV", "학교", "킥라니"],
+                    selected=["가로등", "CCTV", "학교", "킥라니"]
                 )
             ),
-            ui.column(9,
+            ui.column(9,  # 메인
                 ui.output_plot("map_plot")
             )
         )
     )
 
     # ------------------------
-    # Server
+    # 3. Server 정의
     # ------------------------
     def server(input, output, session):
+
+        @reactive.Calc
+        def selected_facilities():
+            return input.facility()
+
         @output
         @render.plot
         def map_plot():
             fig = go.Figure()
-            # 시설별 체크
-            if "가로등" in input.facility():
+            selected = selected_facilities()
+
+            if "가로등" in selected:
                 fig.add_trace(go.Scattermapbox(
-                    lat=df_000['lat'], lon=df_000['lon'],
-                    mode="markers", marker=dict(size=10,color="yellow"),
-                    name="가로등"
+                    lat=df_lamp['위도'],
+                    lon=df_lamp['경도'],
+                    mode='markers',
+                    marker=dict(size=7, color='yellow', opacity=0.5),
+                    text=df_lamp['설치형태'] + '<br>위험도: ' + df_lamp['위험도(100점)'].astype(str),
+                    name='가로등'
                 ))
-            if "CCTV" in input.facility():
+
+            if "CCTV" in selected:
                 fig.add_trace(go.Scattermapbox(
-                    lat=df4['lat'], lon=df4['lon'],
-                    mode="markers", marker=dict(size=10,color="green"),
-                    name="CCTV"
+                    lat=df_cctv['위도'],
+                    lon=df_cctv['경도'],
+                    mode='markers',
+                    marker=dict(size=10, color='green', opacity=0.6),
+                    name='CCTV'
                 ))
-            if "학교" in input.facility():
+
+            if "학교" in selected:
                 fig.add_trace(go.Scattermapbox(
-                    lat=df_천안['lat'], lon=df_천안['lon'],
-                    mode="markers", marker=dict(size=10,color="purple"),
-                    name="학교"
+                    lat=df_school['lat'],
+                    lon=df_school['lon'],
+                    mode='markers',
+                    marker=dict(size=10, color='purple', opacity=0.6),
+                    text=df_school['구분'],
+                    name='학교'
                 ))
-            if "킥라니" in input.facility():
+
+            if "킥라니" in selected:
                 fig.add_trace(go.Scattermapbox(
-                    lat=df6['lat'], lon=df6['lon'],
-                    mode="markers", marker=dict(size=10,color="black"),
-                    name="킥라니"
+                    lat=df_kickrani['위도'],
+                    lon=df_kickrani['경도'],
+                    mode='markers',
+                    marker=dict(size=10, color='black', opacity=0.6),
+                    text=df_kickrani['주차가능 대수'].astype(str),
+                    name='킥라니'
                 ))
 
             fig.update_layout(
                 mapbox_style="open-street-map",
-                mapbox_center={"lat":36.825, "lon":127.125},
-                mapbox_zoom=13,
-                height=600,
-                margin={"r":0,"t":0,"l":0,"b":0}
+                mapbox_zoom=12,
+                mapbox_center={"lat": df_lamp['위도'].mean(), "lon": df_lamp['경도'].mean()},
+                height=800,
+                margin={"r":0,"t":0,"l":0,"b":0},
+                legend=dict(title="시설 종류", orientation="h")
             )
+
             return fig
 
     # ------------------------
-    # App 실행
+    # 4. App 실행
     # ------------------------
     app = App(app_ui, server)
 
