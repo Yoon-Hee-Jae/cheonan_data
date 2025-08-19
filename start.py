@@ -724,16 +724,11 @@ df_000
 
 df_000
 
-# 예: df70['위험도'] 컬럼 기준
-q85 = df_000['위험도(100점)'].quantile(0.99)
-
-# 상위 25% 추출
+# 60점 이상
 df_top85 = df_000[df_000['위험도(100점)'] >= 60]
 
-# 예: df70['위험도'] 컬럼 기준
-q15 = df_000['위험도(100점)'].quantile(0.01)
 
-# 상위 25% 추출
+# 40점 이하
 df_top15 = df_000[df_000['위험도(100점)'] <= 40]
 
 
@@ -753,3 +748,137 @@ fig.add_trace(go.Scattermapbox(
 ))
 
 
+# 위험도만 시각화
+import plotly.graph_objects as go
+
+fig = go.Figure()
+
+# 1) 가로등 군집 색상
+# 군집 색상 범위 (파랑 → 빨강)
+cluster_colors = px.colors.sequential.Bluered  # 뒤집지 않음
+df_000['cluster_color'] = df_000['risk_cluster_ordered'] / df_000['risk_cluster_ordered'].max()
+
+fig.add_trace(go.Scattermapbox(
+    lat=df_000['위도'],
+    lon=df_000['경도'],
+    mode='markers',
+    marker=dict(
+        size=7,
+        color=df_000['cluster_color'],  # 색상 적용
+        colorscale=cluster_colors,
+        opacity=0.8
+        # colorbar 제거
+    ),
+    text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
+    name='가로등 위치'
+))
+# 레이아웃
+fig.update_layout(
+    mapbox_style="open-street-map",
+    mapbox_zoom=12,
+    mapbox_center={"lat": df2_group['시작지점_y'].mean(), "lon": df2_group['시작지점_x'].mean()},
+    height=800,
+    margin={"r":0,"t":0,"l":0,"b":0}
+)
+
+
+
+fig.show()
+
+
+# 가로등 위치 표시
+import plotly.graph_objects as go
+
+fig = go.Figure()
+
+fig.add_trace(go.Scattermapbox(
+    lat=df_000['위도'],
+    lon=df_000['경도'],
+    mode='markers',
+    marker=dict(
+        size=7,
+        color='yellow',  # 색상 적용
+        opacity=0.5
+        # colorbar 제거
+    ),
+    text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
+    name='가로등 위치'
+))
+
+# 3) CCTV
+fig.add_trace(go.Scattermapbox(
+    lat=df4['위도'],
+    lon=df4['경도'],
+    mode='markers',
+    marker=dict(size=10, color='green', opacity=0.6),
+    text=df4['설치위치주소'],
+    name='CCTV 위치'
+))
+
+# 4) 학교
+fig.add_trace(go.Scattermapbox(
+    lat=df_천안['lat'],
+    lon=df_천안['lon'],
+    mode='markers',
+    marker=dict(size=10, color='purple', opacity=0.6),
+    text=df_천안['구분'],
+    name='학교 위치'
+))
+
+# 5) 킥라니
+df6 = pd.read_excel('kickrani.xlsx',header=1)
+fig.add_trace(go.Scattermapbox(
+    lat=df6['위도'],
+    lon=df6['경도'],
+    mode='markers',
+    marker=dict(size=10, color='black', opacity=0.6),
+    text=df6['주차가능 대수'].astype(str),
+    name='킥라니 주차장 위치'
+))
+
+# 6) 사고다발구역
+all_zone = pd.read_csv('all_zone.csv',encoding='cp949')
+fig.add_trace(go.Scattermapbox(
+    lat=all_zone['위도'],
+    lon=all_zone['경도'],
+    mode='markers',
+    marker=dict(size=10, color='gray', opacity=0.6),
+    text=all_zone['지점명'],
+    name='사고다발구역'
+))
+
+# 레이아웃
+fig.update_layout(
+    mapbox_style="open-street-map",
+    mapbox_zoom=12,
+    mapbox_center={"lat": df2_group['시작지점_y'].mean(), "lon": df2_group['시작지점_x'].mean()},
+    height=800,
+    margin={"r":0,"t":0,"l":0,"b":0}
+)
+
+
+
+fig.show()
+
+import plotly.graph_objects as go
+
+# 천안시 중심 좌표
+center_lat = 36.8195
+center_lon = 127.1135
+
+fig = go.Figure(go.Scattermapbox(
+    mode="markers",
+    lat=[center_lat],
+    lon=[center_lon],
+    marker=dict(size=10, color="red"),
+))
+
+fig.update_layout(
+    mapbox_style="open-street-map",
+    mapbox_center={"lat": center_lat, "lon": center_lon},
+    mapbox_zoom=12,
+    height=800,
+    margin={"r":0,"t":0,"l":0,"b":0}
+)
+
+fig.show()
