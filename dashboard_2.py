@@ -16,10 +16,10 @@ df4 = pd.read_csv('cctv최종데이터.csv')
 df6 = pd.read_excel('kickrani.xlsx', header=1)
 df5 = pd.read_csv('학교최종데이터.csv')
 df_000 = pd.read_csv('가로등위험도최종데이터.csv')
+df_store = pd.read_csv('상권최종데이터.csv')
+
 
 fig = go.Figure()
-
-
 
 # 가로등
 fig.add_trace(go.Scattermapbox(
@@ -59,6 +59,16 @@ fig.add_trace(go.Scattermapbox(
     text=df6['주차가능 대수'].astype(str),
     name='킥라니 주차장 위치'
 ))
+
+#상권
+fig.add_trace(go.Scattermapbox(
+    lat=df_store['위도'],
+    lon=df_store['경도'],
+    mode='markers',
+    marker=dict(size=10, color='blue', opacity=0.6),
+    name='상권 위치'
+))
+
 
 # 레이아웃
 fig.update_layout(
