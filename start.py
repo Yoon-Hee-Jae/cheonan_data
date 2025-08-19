@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.ticker as ticker
 import numpy as np
 
+
 # 윈도우: Malgun Gothic / 맥: AppleGothic
 plt.rc('font', family='Malgun Gothic')  # 또는 'AppleGothic'
 plt.rc('axes', unicode_minus=False)     # 마이너스 기호 깨짐 방지
