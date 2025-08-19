@@ -10,89 +10,280 @@ from shiny import App, Inputs, Outputs, Session, ui
 
 
 def server(input: Inputs, output: Outputs, session: Session) -> None:
-    # shiny + plotly
-    from shiny import App, ui, render
+    # ---------------------------------
+    # 패키지 로드
+    # ---------------------------------
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from shiny.express import ui, input, render
+    from shinywidgets import output_widget, render_widget
     import plotly.graph_objects as go
 
-    # ------------------------
-    # 샘플 데이터 (실제 CSV 대신)
-    # ------------------------
-    # 가로등
-    df_000 = {'lat':[36.82,36.825], 'lon':[127.12,127.125], 'name':['가로등1','가로등2']}
-    # CCTV
-    df4 = {'lat':[36.823,36.827], 'lon':[127.122,127.127], 'name':['CCTV1','CCTV2']}
-    # 학교
-    df_천안 = {'lat':[36.824,36.828], 'lon':[127.123,127.128], 'name':['학교1','학교2']}
-    # 킥라니
-    df6 = {'lat':[36.826,36.829], 'lon':[127.124,127.129], 'name':['킥라니1','킥라니2']}
+    # 한글 폰트 설정
+    plt.rcParams['font.family'] = 'Malgun Gothic'
+    plt.rcParams['axes.unicode_minus'] = False
 
-    # ------------------------
-    # UI
-    # ------------------------
-    app_ui = ui.page_fluid(
-        ui.h2("안전한 야간운전을 위한 위험구역 시각화"),
-        ui.row(
-            ui.column(3,
-                ui.input_checkbox_group(
-                    "facility",
-                    "표시할 시설 선택",
-                    choices=["가로등","CCTV","학교","킥라니"],
-                    selected=["가로등","CCTV","학교","킥라니"]
-                )
-            ),
-            ui.column(9,
-                ui.output_plot("map_plot")
+    # ---------------------------------
+    # 전역 변수 초기화
+    # ---------------------------------
+    center_lat, center_lon = 36.8195, 127.1135
+    df_cctv = pd.DataFrame()
+    df_kick = pd.DataFrame()
+    df_school = pd.DataFrame()
+    df_lamp = pd.DataFrame()
+
+    # ---------------------------------
+    # 데이터 로드
+    # ---------------------------------
+    try:
+        df4 = pd.read_csv('cctv최종데이터.csv') 
+        df6 = pd.read_excel('kickrani.xlsx', header=1)
+        df5 = pd.read_csv('학교최종데이터.csv')
+        df_000 = pd.read_csv('가로등위험도최종데이터.csv')
+    
+        # 데이터 전처리
+        if not df4.empty and '위도' in df4.columns and '경도' in df4.columns:
+            df_cctv = df4[['위도', '경도']].dropna()
+    
+        if not df6.empty and '위도' in df6.columns and '경도' in df6.columns:
+            df_kick = df6[['위도', '경도', '주차가능 대수']].dropna()
+    
+        if not df5.empty and 'lat' in df5.columns and 'lon' in df5.columns:
+            df_school = df5[['lat', 'lon', '구분']].dropna()
+    
+        if not df_000.empty and '위도' in df_000.columns and '경도' in df_000.columns:
+            df_lamp = df_000[['위도', '경도', '설치형태', '위험도(100점)']].dropna()
+            # 중심 좌표 업데이트
+            if not df_lamp.empty:
+                center_lat = df_lamp['위도'].mean()
+                center_lon = df_lamp['경도'].mean()
+    
+        print(f"데이터 로드 완료:")
+        print(f"가로등: {len(df_lamp)}개")
+        print(f"CCTV: {len(df_cctv)}개") 
+        print(f"학교: {len(df_school)}개")
+        print(f"킥라니: {len(df_kick)}개")
+    
+    except Exception as e:
+        print(f"데이터 로드 오류: {e}")
+
+    # ---------------------------------
+    # UI 구성
+    # ---------------------------------
+    with ui.sidebar():
+        ui.h2("🗺️ 레이어 선택")
+    
+        ui.h4("기본 시설")
+        ui.input_checkbox_group(
+            "basic_layers",
+            "표시할 시설:",
+            choices={
+                "lamp": "🟡 가로등",
+                "cctv": "🟢 CCTV", 
+                "school": "🟣 학교",
+                "kick": "⚫ 킥라니 주차장"
+            },
+            selected=["lamp"]
+        )
+    
+        ui.hr()
+    
+        ui.h4("위험도별 분석")
+        ui.input_checkbox_group(
+            "risk_layers",
+            "위험도 구역:",
+            choices={
+                "high_risk": "🔴 고위험 (80점 이상)",
+                "medium_risk": "🟠 중위험 (60-79점)",
+                "safe": "🔵 안전 (30-40점)"
+            },
+            selected=[]
+        )
+    
+        ui.hr()
+    
+        ui.h4("지도 설정")
+        ui.input_slider(
+            "map_zoom",
+            "확대/축소:",
+            min=10,
+            max=16,
+            value=12,
+            step=1
+        )
+
+    # 메인 컨텐츠
+    with ui.layout_columns(col_widths=[12]):
+        with ui.card():
+            ui.card_header("천안시 시설물 및 도로 위험도 현황")
+            output_widget("main_map")
+
+    with ui.layout_columns(col_widths=[6, 6]):
+        with ui.card():
+            ui.card_header("📊 데이터 요약")
+            @render.text
+            def data_summary():
+                summary = []
+                if not df_lamp.empty:
+                    summary.append(f"🟡 가로등: {len(df_lamp):,}개")
+                if not df_cctv.empty:
+                    summary.append(f"🟢 CCTV: {len(df_cctv):,}개")
+                if not df_school.empty:
+                    summary.append(f"🟣 학교: {len(df_school):,}개")
+                if not df_kick.empty:
+                    summary.append(f"⚫ 킥라니: {len(df_kick):,}개")
+            
+                return "\n".join(summary) if summary else "데이터가 없습니다."
+    
+        with ui.card():
+            ui.card_header("⚠️ 위험도 분포")
+            @render.text
+            def risk_summary():
+                if df_lamp.empty:
+                    return "가로등 데이터가 없습니다."
+            
+                high_risk = len(df_lamp[df_lamp['위험도(100점)'] >= 80])
+                medium_risk = len(df_lamp[(df_lamp['위험도(100점)'] >= 60) & (df_lamp['위험도(100점)'] < 80)])
+                safe = len(df_lamp[(df_lamp['위험도(100점)'] >= 30) & (df_lamp['위험도(100점)'] <= 40)])
+            
+                return f"""🔴 고위험 (80점 이상): {high_risk:,}개
+    🟠 중위험 (60-79점): {medium_risk:,}개  
+    🔵 안전 (30-40점): {safe:,}개
+    📊 평균 위험도: {df_lamp['위험도(100점)'].mean():.1f}점"""
+
+    # ---------------------------------
+    # 메인 지도 렌더링
+    # ---------------------------------
+    @render_widget
+    def main_map():
+        fig = go.Figure()
+    
+        # 기본 지도에 최소한 하나의 점은 표시 (천안시청)
+        fig.add_trace(go.Scattermapbox(
+            lat=[center_lat],
+            lon=[center_lon],
+            mode='markers',
+            marker=dict(size=12, color='red', symbol='town-hall'),
+            text='천안시청',
+            name='천안시청',
+            hovertemplate='<b>천안시청</b><br>위도: %{lat}<br>경도: %{lon}<extra></extra>'
+        ))
+    
+        # 선택된 레이어들
+        basic_layers = set(input.basic_layers())
+        risk_layers = set(input.risk_layers())
+    
+        # 가로등 (기본)
+        if "lamp" in basic_layers and not df_lamp.empty:
+            fig.add_trace(go.Scattermapbox(
+                lat=df_lamp['위도'],
+                lon=df_lamp['경도'],
+                mode='markers',
+                marker=dict(size=6, color='yellow', opacity=0.6),
+                text=df_lamp['설치형태'].astype(str) + '<br>위험도: ' + df_lamp['위험도(100점)'].astype(str),
+                name='🟡 가로등',
+                hovertemplate='<b>가로등</b><br>설치형태: %{text}<br>위도: %{lat}<br>경도: %{lon}<extra></extra>'
+            ))
+    
+        # CCTV
+        if "cctv" in basic_layers and not df_cctv.empty:
+            fig.add_trace(go.Scattermapbox(
+                lat=df_cctv['위도'],
+                lon=df_cctv['경도'],
+                mode='markers',
+                marker=dict(size=8, color='green', opacity=0.7),
+                name='🟢 CCTV',
+                hovertemplate='<b>CCTV</b><br>위도: %{lat}<br>경도: %{lon}<extra></extra>'
+            ))
+    
+        # 학교
+        if "school" in basic_layers and not df_school.empty:
+            fig.add_trace(go.Scattermapbox(
+                lat=df_school['lat'],
+                lon=df_school['lon'],
+                mode='markers',
+                marker=dict(size=10, color='purple', opacity=0.7),
+                text=df_school['구분'].astype(str),
+                name='🟣 학교',
+                hovertemplate='<b>학교</b><br>구분: %{text}<br>위도: %{lat}<br>경도: %{lon}<extra></extra>'
+            ))
+    
+        # 킥라니 주차장
+        if "kick" in basic_layers and not df_kick.empty:
+            fig.add_trace(go.Scattermapbox(
+                lat=df_kick['위도'],
+                lon=df_kick['경도'],
+                mode='markers',
+                marker=dict(size=10, color='black', opacity=0.7),
+                text='주차가능: ' + df_kick['주차가능 대수'].astype(str) + '대',
+                name='⚫ 킥라니',
+                hovertemplate='<b>킥라니 주차장</b><br>%{text}<br>위도: %{lat}<br>경도: %{lon}<extra></extra>'
+            ))
+    
+        # 위험도별 분석 레이어
+        if not df_lamp.empty:
+            # 고위험 구역
+            if "high_risk" in risk_layers:
+                df_high_risk = df_lamp[df_lamp['위험도(100점)'] >= 80]
+                if not df_high_risk.empty:
+                    fig.add_trace(go.Scattermapbox(
+                        lat=df_high_risk['위도'],
+                        lon=df_high_risk['경도'],
+                        mode='markers',
+                        marker=dict(size=12, color='red', opacity=0.8),
+                        text='위험도: ' + df_high_risk['위험도(100점)'].astype(str),
+                        name='🔴 고위험구역',
+                        hovertemplate='<b>고위험구역</b><br>%{text}점<br>위도: %{lat}<br>경도: %{lon}<extra></extra>'
+                    ))
+        
+            # 중위험 구역
+            if "medium_risk" in risk_layers:
+                df_medium_risk = df_lamp[(df_lamp['위험도(100점)'] >= 60) & (df_lamp['위험도(100점)'] < 80)]
+                if not df_medium_risk.empty:
+                    fig.add_trace(go.Scattermapbox(
+                        lat=df_medium_risk['위도'],
+                        lon=df_medium_risk['경도'],
+                        mode='markers',
+                        marker=dict(size=10, color='orange', opacity=0.7),
+                        text='위험도: ' + df_medium_risk['위험도(100점)'].astype(str),
+                        name='🟠 중위험구역',
+                        hovertemplate='<b>중위험구역</b><br>%{text}점<br>위도: %{lat}<br>경도: %{lon}<extra></extra>'
+                    ))
+        
+            # 안전 구역
+            if "safe" in risk_layers:
+                df_safe_zone = df_lamp[(df_lamp['위험도(100점)'] >= 30) & (df_lamp['위험도(100점)'] <= 40)]
+                if not df_safe_zone.empty:
+                    fig.add_trace(go.Scattermapbox(
+                        lat=df_safe_zone['위도'],
+                        lon=df_safe_zone['경도'],
+                        mode='markers',
+                        marker=dict(size=10, color='blue', opacity=0.7),
+                        text='위험도: ' + df_safe_zone['위험도(100점)'].astype(str),
+                        name='🔵 안전구역',
+                        hovertemplate='<b>안전구역</b><br>%{text}점<br>위도: %{lat}<br>경도: %{lon}<extra></extra>'
+                    ))
+    
+        # 지도 레이아웃 업데이트
+        fig.update_layout(
+            mapbox_style="open-street-map",
+            mapbox_zoom=input.map_zoom(),
+            mapbox_center={"lat": center_lat, "lon": center_lon},
+            height=600,
+            margin={"r": 0, "t": 30, "l": 0, "b": 0},
+            legend=dict(
+                title="범례",
+                orientation="v",
+                yanchor="top",
+                y=0.99,
+                xanchor="left",
+                x=0.01,
+                bgcolor="rgba(255,255,255,0.8)"
             )
         )
-    )
-
-    # ------------------------
-    # Server
-    # ------------------------
-    def server(input, output, session):
-        @output
-        @render.plot
-        def map_plot():
-            fig = go.Figure()
-            # 시설별 체크
-            if "가로등" in input.facility():
-                fig.add_trace(go.Scattermapbox(
-                    lat=df_000['lat'], lon=df_000['lon'],
-                    mode="markers", marker=dict(size=10,color="yellow"),
-                    name="가로등"
-                ))
-            if "CCTV" in input.facility():
-                fig.add_trace(go.Scattermapbox(
-                    lat=df4['lat'], lon=df4['lon'],
-                    mode="markers", marker=dict(size=10,color="green"),
-                    name="CCTV"
-                ))
-            if "학교" in input.facility():
-                fig.add_trace(go.Scattermapbox(
-                    lat=df_천안['lat'], lon=df_천안['lon'],
-                    mode="markers", marker=dict(size=10,color="purple"),
-                    name="학교"
-                ))
-            if "킥라니" in input.facility():
-                fig.add_trace(go.Scattermapbox(
-                    lat=df6['lat'], lon=df6['lon'],
-                    mode="markers", marker=dict(size=10,color="black"),
-                    name="킥라니"
-                ))
-
-            fig.update_layout(
-                mapbox_style="open-street-map",
-                mapbox_center={"lat":36.825, "lon":127.125},
-                mapbox_zoom=13,
-                height=600,
-                margin={"r":0,"t":0,"l":0,"b":0}
-            )
-            return fig
-
-    # ------------------------
-    # App 실행
-    # ------------------------
-    app = App(app_ui, server)
+    
+        return fig
 
     # ========================================================================
 
@@ -101,11 +292,11 @@ def server(input: Inputs, output: Outputs, session: Session) -> None:
     return None
 
 
-_static_assets = ["dashboard_files","cheonan_data\\dashboard_files\\libs\\quarto-html\\tippy.css","cheonan_data\\dashboard_files\\libs\\quarto-html\\quarto-syntax-highlighting-37eea08aefeeee20ff55810ff984fec1.css","cheonan_data\\dashboard_files\\libs\\quarto-html\\quarto-syntax-highlighting-dark-2fef5ea3f8957b3e4ecc936fc74692ca.css","cheonan_data\\dashboard_files\\libs\\bootstrap\\bootstrap-icons.css","cheonan_data\\dashboard_files\\libs\\bootstrap\\bootstrap-f547ca9f9d437787137f2e2308b6cde4.min.css","cheonan_data\\dashboard_files\\libs\\bootstrap\\bootstrap-dark-f547ca9f9d437787137f2e2308b6cde4.min.css","cheonan_data\\dashboard_files\\libs\\clipboard\\clipboard.min.js","cheonan_data\\dashboard_files\\libs\\quarto-html\\quarto.js","cheonan_data\\dashboard_files\\libs\\quarto-html\\tabsets\\tabsets.js","cheonan_data\\dashboard_files\\libs\\quarto-html\\popper.min.js","cheonan_data\\dashboard_files\\libs\\quarto-html\\tippy.umd.min.js","cheonan_data\\dashboard_files\\libs\\quarto-html\\anchor.min.js","cheonan_data\\dashboard_files\\libs\\bootstrap\\bootstrap.min.js","cheonan_data\\dashboard_files\\libs\\quarto-dashboard\\quarto-dashboard.js","cheonan_data\\dashboard_files\\libs\\quarto-dashboard\\stickythead.js","cheonan_data\\dashboard_files\\libs\\quarto-dashboard\\web-components.js","cheonan_data\\dashboard_files\\libs\\quarto-dashboard\\components.js"]
+_static_assets = ##STATIC_ASSETS_PLACEHOLDER##
 _static_assets = {"/" + sa: Path(__file__).parent / sa for sa in _static_assets}
 
 app = App(
-    Path(__file__).parent / "dashboard.html",
+    Path(__file__).parent / "test.html",
     server,
     static_assets=_static_assets,
 )
