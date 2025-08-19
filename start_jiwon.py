@@ -23,214 +23,16 @@ df2 = pd.read_excel('소통통계 (1).xlsx') # 교통량 데이터 2024년1월 ~
 
 # 데이터 전처리
 
-# 데이터 전처리 - 0
-# df2 데이터 12개월치 평균
-df2_group = df2.groupby(['도로명','구간명']).mean().reset_index()
-df2_group.info()
-
-# 데이터 전처리-1
-
-# '구간명' 시작지점, 도착지점으로 구분
-# 정규표현식 사용해서 시작지점과 도착지점 칼럼 새로 추가
-df2_group[['시작지점','도착지점']] = df2_group['구간명'].str.split(' -> ',expand=True)
-# 두 지점 모두 65개의 지점이 있으며 완전 동일함
-len(df2_group['시작지점'].unique()) # 65
-len(df2_group['도착지점'].unique()) # 65
-df2_group['시작지점'].unique()
-df2_group['도착지점'].unique()
-# 값이 동일한지 확인
-arr1 = ['동극섬유', '배방1교차로', '이마트앞교차로서측', '새말사거리', '신방삼거리', '장재2교차로',
-       '청룡지하차도', '청삼교차로', '방죽안오거리', '천안역앞교차로', '동서고가교동측', '동서고가교서측',
-       '서부대로사거리', '시민문화여성회관사거리', '은총교', '인쇄창사거리', '대우1차아파트107동',
-       '대전충남양돈농협신두정지점', '두정역삼거리', '성성고가차도', '카페베네천안두정점', '천안로사거리',
-       '터미널사거리', '석문교차로', '입장교차로', '천안IC앞', 'KB국민은행천안백석종합금융센터', '구상골사거리',
-       '백석사거리', '백석요양원', '봉정사거리', '운동장사거리', '교보사거리', '버들육거리', '고속철도사거리',
-       '불당아이파크아파트', '불당행복주유소', '성성2교차로', '시청앞사거리', '업성동삼거리', '북부고가교',
-       '천고사거리', '한올수예', '쌍용동사거리', '일봉산사거리', '두정지하차도사거리', '북부지하차도',
-       '손수남황태전문점', '쌍용삼거리', 'IBK기업은행천안쌍용지점', '산내들유치원', '삼일원앙아파트101동',
-       '음봉로교차로', '용연마을삼거리', '역말오거리', '쌍용지하차도앞교차로', '천안지하차도', '구성삼거리',
-       '남천안IC', '대림한내아파트', '도로원점삼거리', '수헐교차로', '충무로사거리', '삼룡사거리', '충절오거리']
-
-arr2 = ['이마트앞교차로서측', '동극섬유', '배방1교차로', '신방삼거리', '청룡지하차도', '새말사거리',
-       '장재2교차로', '천안역앞교차로', '방죽안오거리', '동서고가교서측', '동서고가교동측', '시민문화여성회관사거리',
-       '은총교', '서부대로사거리', '인쇄창사거리', '대전충남양돈농협신두정지점', '두정역삼거리',
-       '대우1차아파트107동', '카페베네천안두정점', '성성고가차도', '터미널사거리', '천안IC앞', '천안로사거리',
-       '입장교차로', '석문교차로', '백석요양원', '운동장사거리', '백석사거리', '봉정사거리', '구상골사거리',
-       'KB국민은행천안백석종합금융센터', '버들육거리', '교보사거리', '불당아이파크아파트', '고속철도사거리',
-       '시청앞사거리', '업성동삼거리', '성성2교차로', '불당행복주유소', '북부고가교', '천고사거리', '한올수예',
-       '음봉로교차로', '용연마을삼거리', '쌍용동사거리', '일봉산사거리', '충무로사거리', '두정지하차도사거리',
-       '북부지하차도', '손수남황태전문점', '쌍용삼거리', 'IBK기업은행천안쌍용지점', '삼일원앙아파트101동',
-       '산내들유치원', '청삼교차로', '역말오거리', '쌍용지하차도앞교차로', '천안지하차도', '도로원점삼거리',
-       '구성삼거리', '수헐교차로', '대림한내아파트', '남천안IC', '충절오거리', '삼룡사거리']
-
-# 집합(set)으로 변환하여 비교
-set1 = set(arr1)
-set2 = set(arr2)
-
-if set1 == set2:
-    print("두 배열에 포함된 값들은 완전히 동일합니다.")
-else:
-    print("두 배열에 포함된 값들이 다릅니다.")
-    print("arr1에는 있지만 arr2에는 없는 값:", set1 - set2)
-    print("arr2에는 있지만 arr1에는 없는 값:", set2 - set1)
-
-
-# 데이터 전처리 - 2 상세주소 입력 + 위도 경도 위치 열 추가
-
-# 카카오 api 불러와서 사용
-# 사용전에 홈페이지 들어가서 사용 설정 상태 on으로 설정
-import requests
-
-KAKAO_KEY = 'd222f0f01e3470ce2b8a863cc30b151e'
-
-place_names = ['이마트앞교차로서측', '동극섬유', '배방1교차로', '신방삼거리', '청룡지하차도', '새말사거리',
-       '장재2교차로', '천안역앞교차로', '방죽안오거리', '동서고가교서측', '동서고가교동측', '시민문화여성회관사거리',
-       '은총교', '서부대로사거리', '인쇄창사거리', '대전충남양돈농협신두정지점', '두정역삼거리',
-       '대우1차아파트107동', '카페베네천안두정점', '성성고가차도', '터미널사거리', '천안IC앞', '천안로사거리',
-       '입장교차로', '석문교차로', '백석요양원', '운동장사거리', '백석사거리', '봉정사거리', '구상골사거리',
-       'KB국민은행천안백석종합금융센터', '버들육거리', '교보사거리', '불당아이파크아파트', '고속철도사거리',
-       '시청앞사거리', '업성동삼거리', '성성2교차로', '불당행복주유소', '북부고가교', '천고사거리', '한올수예',
-       '음봉로교차로', '용연마을삼거리', '쌍용동사거리', '일봉산사거리', '충무로사거리', '두정지하차도사거리',
-       '북부지하차도', '손수남황태전문점', '쌍용삼거리', 'IBK기업은행천안쌍용지점', '삼일원앙아파트101동',
-       '산내들유치원', '청삼교차로', '역말오거리', '쌍용지하차도앞교차로', '천안지하차도', '도로원점삼거리',
-       '구성삼거리', '수헐교차로', '대림한내아파트', '남천안IC', '충절오거리', '삼룡사거리']
-len(place_names)
-
-def get_location_by_keyword(keyword):
-    url = 'https://dapi.kakao.com/v2/local/search/keyword.json'
-    headers = {"Authorization": f"KakaoAK {KAKAO_KEY}"}
-    params = {'query': keyword, 'size': 5}
-    res = requests.get(url, headers=headers, params=params)
-    if res.status_code != 200:
-        print(f"Error: {res.status_code}")
-        return None
-    data = res.json()
-    if data['documents']:
-        for doc in data['documents']:
-            print(f"Name: {doc['place_name']}")
-            print(f"Address: {doc.get('road_address_name') or doc.get('address_name')}")
-            print(f"Lat,Lon: {doc['y']}, {doc['x']}")
-            print('---')
-        return data['documents'][0]  # 첫 번째 결과 반환
-    else:
-        print("검색 결과가 없습니다.")
-        return None
-
-results = {}
-for place in place_names:
-    addr = get_location_by_keyword(place)
-    results[place] = addr
-    print(f"{place} => {addr}")
-
-results # results에 {장소명: 주소} 저장
-type(results)
-results['배방1교차로']['address_name']
-
-# 상세주소 열 추가
-results.get('배방1교차로')
-
-def get_detailed_address(place):
-    info = results.get(place)
-    if info:
-        return info['address_name']  # 지번 주소만 반환
-    else:
-        return None
-
-# 새 컬럼 추가
-df2_group['시작지점_상세주소'] = df2_group['시작지점'].apply(get_detailed_address)
-df2_group['도착지점_상세주소'] = df2_group['도착지점'].apply(get_detailed_address)
-df2_group['도착지점_상세주소']
-
-# 위도 경도 열 추가 총 4개 ( 시작지점xy, 도착지점xy)
-
-def get_x(place):
-    info = results.get(place)
-    if info:
-        return info.get('x')
-    return None
-
-def get_y(place):
-    info = results.get(place)
-    if info:
-        return info.get('y')
-    return None
-
-df2_group['시작지점_x'] = df2_group['시작지점'].apply(get_x)
-df2_group['시작지점_y'] = df2_group['시작지점'].apply(get_y)
-df2_group['도착지점_x'] = df2_group['도착지점'].apply(get_x)
-df2_group['도착지점_y'] = df2_group['도착지점'].apply(get_y)
-
-# 위도, 경도 컬럼 타입 확인
-print(df2_group['시작지점_y'].dtype)
-print(df2_group['시작지점_x'].dtype)
-
-# 숫자형으로 강제 변환 (변환 불가능한 값은 NaN 처리)
-df2_group['시작지점_y'] = pd.to_numeric(df2_group['시작지점_y'], errors='coerce')
-df2_group['시작지점_x'] = pd.to_numeric(df2_group['시작지점_x'], errors='coerce')
-
-df2_group.info()
-
-# 채워넣을 좌표 사전
-coords = {
-    "이마트앞교차로서측": (36.795903, 127.125890),
-    "동서고가교서측": (36.825046, 127.148013),
-    "동서고가교동측": (36.824900, 127.149997),
-    "시민문화여성회관사거리": (36.827078, 127.135256),
-    "두정지하차도사거리": (36.837068, 127.151585),
-    "손수남황태전문점": (36.838993, 127.135390)
-}
-
-# 시작지점 Null 값 채우기
-for name, (lat, lon) in coords.items():
-    mask = (df2_group["시작지점"] == name)
-    df2_group.loc[mask, "시작지점_y"] = df2_group.loc[mask, "시작지점_y"].fillna(lat)
-    df2_group.loc[mask, "시작지점_x"] = df2_group.loc[mask, "시작지점_x"].fillna(lon)
-
-# 도착지점 Null 값 채우기
-for name, (lat, lon) in coords.items():
-    mask = (df2_group["도착지점"] == name)
-    df2_group.loc[mask, "도착지점_y"] = df2_group.loc[mask, "도착지점_y"].fillna(lat)
-    df2_group.loc[mask, "도착지점_x"] = df2_group.loc[mask, "도착지점_x"].fillna(lon)
-
-df2_group[df2_group['시작지점']=='이마트앞교차로서측']
-
-df2_group.isnull().sum()
-df2_group[df2_group['시작지점_x'].isnull()].index
-df2_group[df2_group['시작지점_y'].isnull()].index
-df2_group[df2_group['도착지점_x'].isnull()].index
-df2_group[df2_group['도착지점_y'].isnull()].index
-
-null_index = df2_group[df2_group['시작지점_x'].isnull()].index.union(
-    df2_group[df2_group['도착지점_y'].isnull()].index
-)
-
-df2_group.shape
-
-df2_group = df2_group[~df2_group.index.isin(null_index)].reset_index()
-
-df2_group.isnull().sum()
-
-len(df2_group['도착지점'].unique())
-
-df2_group
-
 ############################################################################################
-
-import plotly.express as px
 
 # 가로등 시각화
 df3 = pd.read_csv('충청남도 천안시_가로등 현황_20240729.csv') # 가로등 데이터
 df3.info() # 결측치 존재 특히, 도로묭주소에 결측치 10000개 존재
 df3['설치형태'].unique() # ['LED', 'CML', 'CDM', '나트륨', '메탈', '삼파장', 'CPO', 'CCTV', '써치등']
 df3['설치형태'].value_counts()
-# 설치형태 이상치 제거 필요
-df3[df3['설치형태']=='CCTV']
-df3[df3['설치형태']=='나트륨']
-df3[df3['설치형태']=='메탈']
-df3[df3['설치형태']=='삼파장']
-
-# 시작지점 + 가로등 시각화
-import plotly.graph_objects as go
+# 설치형태 cctv 삭제
+df3[df3['설치형태']=='CCTV'].index
+df3 = df3.drop(index=3628).reset_index(drop=True)
 
 # cctv 시각화
 df4 = pd.read_csv('충청남도 천안시_교통정보 CCTV_20220922.csv', encoding='cp949') 
@@ -258,8 +60,6 @@ df_천안 = df_천안[~df_천안.index.isin(null_index)].reset_index()
 df5.info()
 
 # 주소를 좌표로 변환하는 함수
-import requests
-from tqdm import tqdm
 
 KAKAO_KEY = 'd222f0f01e3470ce2b8a863cc30b151e'
 
@@ -421,6 +221,11 @@ df3.info()
 df_000 = pd.read_csv('충청남도 천안시_가로등_위험도_20240729.csv')
 df_000['위험도(100점)']
 
+df_000.head()
+
+nrisk=df_000.copy()
+nri
+
 plt.figure(figsize=(8,5))
 plt.hist(df_000['위험도(100점)'], bins=20, color='orange', edgecolor='black')
 plt.title('가로등 위험도 점수 분포')
@@ -580,23 +385,235 @@ fig.update_layout(
 
 fig.show()
 
-##################################################################################
-#위험구역 특징
+#=============================================#
+#위험구역 특징 분석 (막대그래프 3개)
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+
 df_000.info()
-danger_zone = df_000[df_000["위험도(100점)"] >= 60]
 
-# 관심 변수 목록
-cols = [
-    "근처 가로등수",
-    "근처 CCTV개수",
-    "근처 킥라니주차장개수",
-    "300m내_사고다발지역_개수",
-    "가장가까운_사고다발지역_거리(m)",
-    "주변 학교 수",
-    "가장 가까운 학교와의 거리",
-    "광원 등급"
-]
+# ✅ 1. 분석 변수 구분
+count_cols = ["근처 가로등수","근처 CCTV개수","근처 킥라니주차장개수","300m내_사고다발지역_개수","주변 학교 수"]
+dist_cols = ["가장가까운_사고다발지역_거리(m)","가장 가까운 학교와의 거리"]
+cat_col = "광원 등급"
 
-# 위험구역 특징 요약
-danger_features = danger_zone[cols].describe().T
-danger_features[["mean","50%","min","max"]]
+# ✅ 2. 위험/안전 구역 분리
+df_risk = df_000[df_000["위험도(100점)"] >= 60]
+df_safe = df_000[df_000["위험도(100점)"] <= 40]
+
+# ✅ 3. 평균 + 95% 신뢰구간 계산 함수
+def mean_ci(df_000, cols, confidence=0.95):
+    means = df_000[cols].mean()
+    ci = []
+    for col in cols:
+        n = df_000[col].count()
+        if n > 1:
+            se = stats.sem(df_000[col], nan_policy='omit')
+            h = se * stats.t.ppf((1 + confidence) / 2., n-1)
+        else:
+            h = 0
+        ci.append(h)
+    return means, ci
+
+# 📌 (1) 개수형 변수 그래프
+risk_mean_count, risk_ci_count = mean_ci(df_risk, count_cols)
+safe_mean_count, safe_ci_count = mean_ci(df_safe, count_cols)
+
+x = np.arange(len(count_cols))
+width = 0.35
+fig, ax = plt.subplots(figsize=(10,6))
+ax.bar(x - width/2, risk_mean_count, width, yerr=risk_ci_count, capsize=5, label='위험구역', color='red', alpha=0.7)
+ax.bar(x + width/2, safe_mean_count, width, yerr=safe_ci_count, capsize=5, label='안전구역', color='green', alpha=0.7)
+ax.set_xticks(x)
+ax.set_xticklabels(count_cols, rotation=45)
+ax.set_ylabel("평균값 (개수)")
+ax.set_title("안전구역 vs 위험구역 (개수 변수, 95% CI)")
+ax.legend()
+ax.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+# 📌 (2) 거리형 변수 그래프
+risk_mean_dist, risk_ci_dist = mean_ci(df_risk, dist_cols)
+safe_mean_dist, safe_ci_dist = mean_ci(df_safe, dist_cols)
+
+x = np.arange(len(dist_cols))
+fig, ax = plt.subplots(figsize=(8,6))
+ax.bar(x - width/2, risk_mean_dist, width, yerr=risk_ci_dist, capsize=5, label='위험구역', color='red', alpha=0.7)
+ax.bar(x + width/2, safe_mean_dist, width, yerr=safe_ci_dist, capsize=5, label='안전구역', color='green', alpha=0.7)
+ax.set_xticks(x)
+ax.set_xticklabels(dist_cols, rotation=45)
+ax.set_ylabel("평균값 (m)")
+ax.set_title("안전구역 vs 위험구역 (거리 변수, 95% CI)")
+ax.legend()
+ax.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+# 📌 (3) 광원등급 분포 비교
+risk_light = df_risk[cat_col].value_counts(normalize=True) * 100
+safe_light = df_safe[cat_col].value_counts(normalize=True) * 100
+
+light_df = pd.DataFrame({
+    "위험구역": risk_light,
+    "안전구역": safe_light
+}).fillna(0)
+
+light_df.plot(kind='bar', figsize=(8,6))
+plt.title("위험구역 vs 안전구역 - 광원등급 분포 비교 (%)")
+plt.ylabel("비율 (%)")
+plt.xticks(rotation=0)
+plt.legend()
+plt.show()
+
+#=============================================#
+#위험구역 특징 분석 (막대그래프 + 파이차트 / 한장짜리 대시보드)
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy import stats
+from adjustText import adjust_text
+
+df_000.info()
+# ✅ 1. 분석 변수 구분
+count_cols = ["근처 가로등수","근처 CCTV개수","근처 킥라니주차장개수","300m내_사고다발지역_개수","주변 학교 수"]
+dist_cols = ["가장가까운_사고다발지역_거리(m)","가장 가까운 학교와의 거리"]
+cat_col = "광원 등급"
+
+# ✅ 2. 위험/안전 구역 분리
+df_risk = df_000[df_000["위험도(100점)"] >= 60]
+df_safe = df_000[df_000["위험도(100점)"] <= 40]
+
+# ✅ 평균 + 95% 신뢰구간 계산 함수
+def mean_ci(df, cols, confidence=0.95):
+    means = df[cols].mean()
+    ci = []
+    for col in cols:
+        n = df[col].count()
+        if n > 1:
+            se = stats.sem(df[col], nan_policy='omit')
+            h = se * stats.t.ppf((1 + confidence) / 2., n-1)
+        else:
+            h = 0
+        ci.append(h)
+    return means, ci
+
+# 📊 평균/CI 계산
+risk_mean_count, risk_ci_count = mean_ci(df_risk, count_cols)
+safe_mean_count, safe_ci_count = mean_ci(df_safe, count_cols)
+risk_mean_dist, risk_ci_dist = mean_ci(df_risk, dist_cols)
+safe_mean_dist, safe_ci_dist = mean_ci(df_safe, dist_cols)
+
+# 📊 광원등급 분포
+risk_light = df_risk[cat_col].value_counts(normalize=True) * 100
+safe_light = df_safe[cat_col].value_counts(normalize=True) * 100
+
+# =============================
+# ✅ Figure 한 장짜리 대시보드
+# =============================
+fig, axes = plt.subplots(2, 2, figsize=(20,14))
+axes = axes.flatten()
+
+# (1) 개수형 변수 그래프
+x = np.arange(len(count_cols))
+width = 0.35
+axes[0].bar(x - width/2, risk_mean_count, width, yerr=risk_ci_count, capsize=5, label='위험구역', color='red', alpha=0.7)
+axes[0].bar(x + width/2, safe_mean_count, width, yerr=safe_ci_count, capsize=5, label='안전구역', color='green', alpha=0.7)
+
+# 숫자 라벨
+for i, v in enumerate(risk_mean_count):
+    axes[0].text(i - width/2, v + max(risk_ci_count[i],0.5), f"{v:.1f}", ha='center', va='bottom', fontsize=9, color='red')
+for i, v in enumerate(safe_mean_count):
+    axes[0].text(i + width/2, v + max(safe_ci_count[i],0.5), f"{v:.1f}", ha='center', va='bottom', fontsize=9, color='green')
+
+axes[0].set_xticks(x)
+axes[0].set_xticklabels(count_cols, rotation=45)
+axes[0].set_ylabel("평균값 (개수)")
+axes[0].set_title("개수 변수 비교 (95% CI)")
+axes[0].legend()
+axes[0].grid(axis='y', linestyle='--', alpha=0.7)
+
+# (2) 거리형 변수 그래프
+x = np.arange(len(dist_cols))
+axes[1].bar(x - width/2, risk_mean_dist, width, yerr=risk_ci_dist, capsize=5, label='위험구역', color='red', alpha=0.7)
+axes[1].bar(x + width/2, safe_mean_dist, width, yerr=safe_ci_dist, capsize=5, label='안전구역', color='green', alpha=0.7)
+
+# 숫자 라벨
+for i, v in enumerate(risk_mean_dist):
+    axes[1].text(i - width/2, v + max(risk_ci_dist[i],1), f"{v:.0f}", ha='center', va='bottom', fontsize=9, color='red')
+for i, v in enumerate(safe_mean_dist):
+    axes[1].text(i + width/2, v + max(safe_ci_dist[i],1), f"{v:.0f}", ha='center', va='bottom', fontsize=9, color='green')
+
+axes[1].set_xticks(x)
+axes[1].set_xticklabels(dist_cols, rotation=45)
+axes[1].set_ylabel("평균값 (m)")
+axes[1].set_title("거리 변수 비교 (95% CI)")
+axes[1].legend()
+axes[1].grid(axis='y', linestyle='--', alpha=0.7)
+
+# (3) 위험구역 광원등급 파이차트
+wedges, _ = axes[2].pie(
+    risk_light, startangle=90,
+    colors=plt.cm.Reds(np.linspace(0.3, 0.8, len(risk_light)))
+)
+axes[2].set_title("위험구역 - 광원등급 분포")
+
+for i, p in enumerate(wedges):
+    value = risk_light.iloc[i]
+    ang = (p.theta2 - p.theta1)/2. + p.theta1
+    y = np.sin(np.deg2rad(ang))
+    x = np.cos(np.deg2rad(ang))
+    if value <= 5:  # 5% 이하만 화살표로 밖으로
+        axes[2].annotate(f"{risk_light.index[i]}: {value:.1f}%",
+                         xy=(x*0.7, y*0.7), xytext=(x*1.2, y*1.2),
+                         arrowprops=dict(arrowstyle="->", color='black'),
+                         ha='center', va='center')
+    else:  # 나머지는 wedge 안쪽
+        axes[2].text(0.7*x, 0.7*y, f"{value:.1f}%", ha='center', va='center', fontsize=9)
+
+axes[2].legend(wedges, risk_light.index, title="광원등급", loc="best")
+
+# (4) 안전구역 광원등급 파이차트
+wedges, _ = axes[3].pie(
+    safe_light, startangle=90,
+    colors=plt.cm.Greens(np.linspace(0.3, 0.8, len(safe_light)))
+)
+axes[3].set_title("안전구역 - 광원등급 분포")
+
+for i, p in enumerate(wedges):
+    value = safe_light.iloc[i]
+    ang = (p.theta2 - p.theta1)/2. + p.theta1
+    y = np.sin(np.deg2rad(ang))
+    x = np.cos(np.deg2rad(ang))
+
+    if value <= 2:  # 2% 이하(수정)만 화살표로 밖으로
+        # 겹치지 않게 특정 등급만 xytext 조정
+        offset_multiplier = 1.2
+        if safe_light.index[i] == '2등급':
+            xytext = (x*offset_multiplier, y*offset_multiplier + 0.1)
+        elif safe_light.index[i] == '3등급':
+            xytext = (x*offset_multiplier, y*offset_multiplier - 0.1)
+        else:
+            xytext = (x*offset_multiplier, y*offset_multiplier)
+
+        axes[3].annotate(f"{safe_light.index[i]}: {value:.1f}%",
+                         xy=(x*0.7, y*0.7), xytext=xytext,
+                         arrowprops=dict(arrowstyle="->", color='black'),
+                         ha='center', va='center')
+    else:  # 나머지는 wedge 안쪽
+        axes[3].text(0.7*x, 0.7*y, f"{value:.1f}%", ha='center', va='center', fontsize=9)
+
+axes[3].legend(wedges, safe_light.index, title="광원등급", loc="best")
+
+plt.tight_layout()
+plt.show()
+
+#킥라니 주차장 T-test검정
+from scipy.stats import ttest_ind
+
+# 위험구역 vs 안전구역 킥라니 주차장 개수 비교
+risk_val = df_risk["근처 킥라니주차장개수"].dropna()
+safe_val = df_safe["근처 킥라니주차장개수"].dropna()
+t_stat, p_val = ttest_ind(risk_val, safe_val, equal_var=False)  # 등분산 가정 X
+print("p-value:", p_val)
+
