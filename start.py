@@ -386,6 +386,7 @@ df_store = pd.read_csv("소상공인시장진흥공단_상가(상권)정보_충�
 df_store = df_store[df_store['시군구명'].str.contains("천안", na=False)].reset_index(drop=True)
 df_store = df_store[(df_store['상권업종대분류명']=="음식")|(df_store['상권업종대분류명']=="숙박")]
 df_store.reset_index(drop=True,inplace=True)
+df_store.to_csv("상권최종데이터.csv")
 import requests
 import pandas as pd
 import time
