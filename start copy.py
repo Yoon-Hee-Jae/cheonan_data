@@ -3,6 +3,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.ticker as ticker
 import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import requests
+from tqdm import tqdm
+from sklearn.neighbors import BallTree
+from sklearn.preprocessing import MinMaxScaler
 
 
 # 윈도우: Malgun Gothic / 맥: AppleGothic
@@ -227,10 +233,13 @@ df3[df3['설치형태']=='삼파장']
 import plotly.graph_objects as go
 
 # cctv 시각화
-df4 = pd.read_csv('충청남도 천안시_교통정보 CCTV_20220922.csv', encoding='cp949')
-df4.info()
-df4
+df4 = pd.read_csv('충청남도 천안시_교통정보 CCTV_20220922.csv', encoding='cp949') 
 # CCTV의 수가 94개로 너무 적음
+df4_1 = df4[['위도','경도']]
+# 과속카메라 추가
+cctv_2 = pd.read_csv('cctv_2.csv')
+cctv_2 = cctv_2[['위도','경도']]
+cctv = pd.concat([df4_1,cctv_2], ignore_index=True)
 # 데이터 재점검 필요
 
 # 학교 
@@ -273,21 +282,17 @@ df6 = pd.read_excel('kickrani.xlsx')
 df6.info()
 # 2번쨰 행부터 불러오기
 df6 = pd.read_excel("kickrani.xlsx", header=1)
-df6.info()
+
 
 # 이륜차 사고 다발 지역
 df7 = pd.read_csv('motorcycle.csv', encoding='cp949')
-df7.info()
-df7.head()
+
 
 df7 = df7[df7['시도시군구명'].str.contains('천안시')]
 df7['구분'] = '이륜차 사고다발지역'
-df7.head()
 
 # 보행자 사고 다발 지역
 df8 = pd.read_csv('pedstrians.csv', encoding='cp949')
-df8.info()
-df8.head()
 df8 = df8[df8['시도시군구명'].str.contains('천안시')]
 df8['구분'] = '보행자 사고다발지역'
 
@@ -305,124 +310,31 @@ df10['구분'] = '화물차 사고다발지역'
 danger_zone = pd.concat([df7, df8], ignore_index=True)
 danger_zone = pd.concat([danger_zone, df9], ignore_index=True)
 danger_zone = pd.concat([danger_zone, df10], ignore_index=True)
-danger_zone['구분'].unique()
-danger_zone.info()
+
 danger_zone['사고다발지id'] = danger_zone['사고다발지id'].astype(str)
 danger_zone['연도'] = danger_zone['사고다발지id'].str.extract(r'^(\d{4})')
 danger_zone['연도'] = danger_zone['연도'].astype(int)
 danger_zone = danger_zone[danger_zone['연도']>=2021].reset_index(drop=True)
 danger_zone = danger_zone.sort_values('연도').reset_index(drop=True)
-danger_zone
-# danger_zone.to_csv('danger_zone.csv', index=False, encoding='cp949')
-danger_zone[danger_zone['연도']==2024]
 
-danger_zone
+# danger_zone.to_csv('danger_zone.csv', index=False, encoding='cp949')
+
 # 영찬 지원누나 사고 다발 구간 합치기
 danger_jiwon = pd.read_csv('jiwon_danger_zone.csv',encoding='cp949')
 danger_youngchan = pd.read_csv('youngchan_danger_zone.csv')
-danger_jiwon.columns
-danger_youngchan.columns
-danger_zone.columns
 danger_youngchan=danger_youngchan.drop('법규위반', axis=1)
 
 danger_zone = pd.concat([danger_zone, danger_youngchan], ignore_index=True)
 danger_zone = pd.concat([danger_zone, danger_jiwon], ignore_index=True)
-danger_zone.info()
-danger_2024 = danger_zone[danger_zone['연도'] == 2024]
-danger_2024.shape # 54개 사고 다발 구간
-danger_2024['구분'].value_counts() 
+
 # danger_zone.to_csv('all_zone.csv', index=False, encoding='cp949') # 사고다발구간 최종 데이터프레임
-
-
 #######################################################################
-# 시각화
-fig = go.Figure()
-
-# 1) df2_group 산점도 추가 (기존 시각화 데이터)
-fig.add_trace(go.Scattermapbox(
-    lat=df2_group['시작지점_y'],
-    lon=df2_group['시작지점_x'],
-    mode='markers',
-    marker=dict(size=20, color='blue'),
-    text=df2_group['시작지점'],
-    name='시작지점'
-))
-
-# 2) df3 가로등 위치 추가
-fig.add_trace(go.Scattermapbox(
-    lat=df3['위도'],
-    lon=df3['경도'],
-    mode='markers',
-    marker=dict(size=7, color='pink', opacity=0.6),
-    text=df3['설치형태'],  # 마우스 올리면 관리기관 표시
-    name='가로등 위치'
-))
-
-# 3) cctv 위치 시각화
-fig.add_trace(go.Scattermapbox(
-    lat=df4['위도'],
-    lon=df4['경도'],
-    mode='markers',
-    marker=dict(size=10, color='green', opacity=0.6),
-    text=df4['설치위치주소'],  # 마우스 올리면 관리기관 표시
-    name='CCTV 위치'
-))
-
-# 4) school 위치 시각화
-fig.add_trace(go.Scattermapbox(
-    lat=df_천안['lat'],
-    lon=df_천안['lon'],
-    mode='markers',
-    marker=dict(size=10, color='purple', opacity=0.6),
-    text=df5['구분'],  # 마우스 올리면 관리기관 표시
-    name='학교 위치'
-))
-
-# 5) 킥라니 위치 시각화
-fig.add_trace(go.Scattermapbox(
-    lat=df6['위도'],
-    lon=df6['경도'],
-    mode='markers',
-    marker=dict(size=10, color='black', opacity=0.6),
-    text=df6['주차가능 대수'],  # 마우스 올리면 관리기관 표시
-    name='킥라니 주차장 위치'
-))
-# 사고다발구역 시각화
-fig.add_trace(go.Scattermapbox(
-    lat=danger_zone['위도'],
-    lon=danger_zone['경도'],
-    mode='markers',
-    marker=dict(size=10, color='black', opacity=0.6),
-    text=danger_zone['지점명'],  # 마우스 올리면 지점명 표시
-    name='사고다발구역 주차장 위치'
-))
-
-
-
-# 레이아웃 설정
-fig.update_layout(
-    mapbox_style="open-street-map",
-    mapbox_zoom=12,
-    mapbox_center={
-        "lat": df2_group['시작지점_y'].mean(),
-        "lon": df2_group['시작지점_x'].mean()
-    },
-    height=800,
-    margin={"r":0,"t":0,"l":0,"b":0}
-)
-
-fig.show()
 
 ############################################################################################
 # 반경 300m 내 가로등 개수추가
 
 # 가로등 데이터프레임에서 위도 경도 설치형태만 남기기
 df3 = df3[['위도','경도','설치형태']]
-df3
-
-df3.info()
-
-from sklearn.neighbors import BallTree
 
 # 위경도를 라디안으로 변환
 coords = np.radians(df3[['위도', '경도']].values)
@@ -439,20 +351,8 @@ counts = tree.query_radius(coords, r=radius, count_only=True)
 # 결과 저장 (자기 자신 포함이므로 -1)
 df3['근처 가로등수'] = counts - 1
 
-print(df3.head())
-df3['근처 가로등수'].describe()
-
 #################################################################################################
 # 반경 300m 내 cctv 수 추가
-df4.info()
-df4_1 = df4[['위도','경도']]
-# 과속카메라 추가
-cctv_2 = pd.read_csv('cctv_2.csv')
-cctv_2.info()
-cctv_2.head()
-cctv_2 = cctv_2[['위도','경도']]
-cctv = pd.concat([df4_1,cctv_2], ignore_index=True)
-cctv.info()
 
 # 위도·경도 → 라디안 변환
 lamp_coords_rad = np.radians(df3[['위도', '경도']].values)   # 가로등 좌표
@@ -515,57 +415,7 @@ df3 = pd.concat([df3, youngchan], axis=1)
 
 df3.info()
 #########################################################3
-## 위험도 점수 산출
-from sklearn.preprocessing import MinMaxScaler
-
-# 숫자가 낮을수록 위험인 컬럼
-low_risk_high = ['근처 가로등수', '근처 CCTV개수', '가장가까운_사고다발지역_거리(m)', '가장 가까운 학교와의 거리']
-
-# 숫자가 높을수록 위험인 컬럼
-high_risk_high = ['근처 킥라니주차장개수', '300m내_사고다발지역_개수', '주변 학교 수', '광원 등급']
-
-# 가중치 (합 = 1)
-weights = {
-    '근처 가로등수': 0.2,
-    '가장가까운_사고다발지역_거리(m)': 0.15,
-    '300m내_사고다발지역_개수': 0.15,
-    '근처 CCTV개수': 0.1,
-    '주변 학교 수': 0.1,
-    '가장 가까운 학교와의 거리': 0.1,
-    '광원 등급': 0.1,
-    '근처 킥라니주차장개수': 0.1
-}
-
-df_scaled = df3.copy()
-
-# 정규화
-scaler = MinMaxScaler()
-for col in low_risk_high:
-    # 낮을수록 위험 → 역변환
-    df_scaled[col+'_scaled'] = 1 - scaler.fit_transform(df_scaled[[col]])
-
-for col in high_risk_high:
-    # 높을수록 위험 → 그대로 스케일링
-    df_scaled[col+'_scaled'] = scaler.fit_transform(df_scaled[[col]])
-
-# 위험도 점수 계산
-risk_score = 0
-for col, w in weights.items():
-    risk_score += df_scaled[col+'_scaled'] * w
-
-df3['위험도점수'] = risk_score * 100  # 0~100점
-
-# 확인
-df3.head()
-### 희재 점수
-plt.figure(figsize=(8,5))
-plt.hist(df3['위험도점수'], bins=20, color='orange', edgecolor='black')
-plt.title('가로등 위험도 점수 분포')
-plt.xlabel('위험도 점수')
-plt.ylabel('가로등 개수')
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.show()
-df3[df3['위험도점수']>=68] # 127개
+## 위험도 점수 산출  -- 영천이꺼
 
 # 영찬이 점수
 df_000 = pd.read_csv('충청남도 천안시_가로등_위험도_20240729.csv')
@@ -579,231 +429,67 @@ plt.ylabel('가로등 개수')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show() # 168개
 
-df_000[df_000['위험도(100점)']>=68]
-
-# 지원누나 점수
-df_222 = pd.read_csv('점수화_ver.1.csv',encoding='cp949')
-plt.figure(figsize=(8,5))
-plt.hist(df_222['총합_score'], bins=20, color='orange', edgecolor='black')
-plt.title('가로등 위험도 점수 분포')
-plt.xlabel('위험도 점수')
-plt.ylabel('가로등 개수')
-plt.grid(axis='y', linestyle='--', alpha=0.7)
-plt.show()
-
-# 군집화 진행
-df_000.info()
-df_000['위험도(100점)'].describe()
-
-from sklearn.cluster import KMeans
-import plotly.express as px
-
-# 1) 위험도 점수만 사용
-X = df_000[['위험도(100점)']].values
-
-# 2) K-Means 군집화 (5개 군집)
-kmeans = KMeans(n_clusters=5, random_state=42)
-df_000['risk_cluster'] = kmeans.fit_predict(X)
-
-# 3) 군집별 평균 위험도 확인 (낮음→높음 순으로 정렬)
-cluster_order = df_000.groupby('risk_cluster')['위험도(100점)'].mean().sort_values().index
-df_000['risk_cluster_ordered'] = df_000['risk_cluster'].apply(lambda x: list(cluster_order).index(x))
-###############################################################################
-
-# 
-# 4) 색상 범위 지정 (파랑 → 빨강)
-color_scale = px.colors.sequential.Bluered[::]  # Bluered를 뒤집어서 파랑→빨강
-
-# 5) 지도 시각화
-fig = px.scatter_mapbox(
-    df_000,
-    lat='위도',
-    lon='경도',
-    color='risk_cluster_ordered',
-    size='위험도(100점)',
-    hover_data=['설치형태','위험도(100점)'],
-    zoom=12,
-    height=800,
-    color_continuous_scale=color_scale
-)
-
-fig.update_layout(
-    mapbox_style="open-street-map",
-    margin={"r":0,"t":0,"l":0,"b":0}
-)
-
-fig.show()
-
-# 학교 같은 것도 같이 표시
-
-import plotly.graph_objects as go
-
-fig = go.Figure()
-
-# 1) 가로등 군집 색상
-# 군집 색상 범위 (파랑 → 빨강)
-cluster_colors = px.colors.sequential.Bluered  # 뒤집지 않음
-df_000['cluster_color'] = df_000['risk_cluster_ordered'] / df_000['risk_cluster_ordered'].max()
-
-fig.add_trace(go.Scattermapbox(
-    lat=df_000['위도'],
-    lon=df_000['경도'],
-    mode='markers',
-    marker=dict(
-        size=7,
-        color=df_000['cluster_color'],  # 색상 적용
-        colorscale=cluster_colors,
-        opacity=0.8
-        # colorbar 제거
-    ),
-    text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
-    name='가로등 위치'
-))
-# 3) CCTV
-fig.add_trace(go.Scattermapbox(
-    lat=df4['위도'],
-    lon=df4['경도'],
-    mode='markers',
-    marker=dict(size=10, color='green', opacity=0.6),
-    text=df4['설치위치주소'],
-    name='CCTV 위치'
-))
-
-# 4) 학교
-fig.add_trace(go.Scattermapbox(
-    lat=df_천안['lat'],
-    lon=df_천안['lon'],
-    mode='markers',
-    marker=dict(size=10, color='yellow', opacity=0.6),
-    text=df_천안['구분'],
-    name='학교 위치'
-))
-
-# 5) 킥라니
-df6 = pd.read_excel('kickrani.xlsx',header=1)
-fig.add_trace(go.Scattermapbox(
-    lat=df6['위도'],
-    lon=df6['경도'],
-    mode='markers',
-    marker=dict(size=10, color='black', opacity=0.6),
-    text=df6['주차가능 대수'].astype(str),
-    name='킥라니 주차장 위치'
-))
-
-# 6) 사고다발구역
-all_zone = pd.read_csv('all_zone.csv',encoding='cp949')
-fig.add_trace(go.Scattermapbox(
-    lat=all_zone['위도'],
-    lon=all_zone['경도'],
-    mode='markers',
-    marker=dict(size=10, color='gray', opacity=0.6),
-    text=all_zone['지점명'],
-    name='사고다발구역'
-))
-
-# 레이아웃
-fig.update_layout(
-    mapbox_style="open-street-map",
-    mapbox_zoom=12,
-    mapbox_center={"lat": df2_group['시작지점_y'].mean(), "lon": df2_group['시작지점_x'].mean()},
-    height=800,
-    margin={"r":0,"t":0,"l":0,"b":0}
-)
-
-fig.show()
-
-
-df_000['risk_cluster'].value_counts()
-
-all_zone['연도'].value_counts()
 
 df70 = df_000[df_000['위험도(100점)']>=70]
-
 df_000.sort_values('위험도(100점)',inplace=True)
 df_000 = df_000.reset_index(drop=True)
-df_000
 
-df_000
+##########################################################################################################
+
+# 가로등 위험도만 시각화 진행
 
 # 60점 이상
-df_top85 = df_000[df_000['위험도(100점)'] >= 60]
-
+df_top60 = df_000[df_000['위험도(100점)'] >= 60]
 
 # 40점 이하
-df_top15 = df_000[df_000['위험도(100점)'] <= 40]
-
-fig.add_trace(go.Scattermapbox(
-    lat=df_000['위도'],
-    lon=df_000['경도'],
-    mode='markers',
-    marker=dict(
-        size=7,
-        color='yellow',  # 색상 적용
-        opacity=0.5
-        # colorbar 제거
-    ),
-    text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
-    name='가로등 위치'
-))
-
-fig.add_trace(go.Scattermapbox(
-    lat=df_top85['위도'],
-    lon=df_top85['경도'],
-    mode='markers',
-    marker=dict(size=10, color='orange', opacity=0.6),
-))
-
-fig.add_trace(go.Scattermapbox(
-    lat=df_top15['위도'],
-    lon=df_top15['경도'],
-    mode='markers',
-    marker=dict(size=10, color='pink', opacity=0.6),
-))
-
-
-
-
-# 위험도만 시각화
-import plotly.graph_objects as go
+df_top40 = df_000[(df_000['위험도(100점)'] >= 30) & (df_000['위험도(100점)'] <= 40) ]
 
 fig = go.Figure()
 
-# 1) 가로등 군집 색상
-# 군집 색상 범위 (파랑 → 빨강)
-cluster_colors = px.colors.sequential.Bluered  # 뒤집지 않음
-df_000['cluster_color'] = df_000['risk_cluster_ordered'] / df_000['risk_cluster_ordered'].max()
-
-fig.add_trace(go.Scattermapbox(
+# 가로등 전체 위치
+fig.add_trace(go.Scattermap(
     lat=df_000['위도'],
     lon=df_000['경도'],
     mode='markers',
     marker=dict(
         size=7,
-        color=df_000['cluster_color'],  # 색상 적용
-        colorscale=cluster_colors,
-        opacity=0.8
-        # colorbar 제거
+        color='yellow',
+        opacity=0.5
     ),
     text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
     name='가로등 위치'
 ))
-# 레이아웃
+
+# 위험도 상위 60%
+fig.add_trace(go.Scattermap(
+    lat=df_top60['위도'],
+    lon=df_top60['경도'],
+    mode='markers',
+    marker=dict(size=10, color='orange', opacity=0.6),
+    name='위험도 상위 60%'
+))
+
+# 위험도 상위 40%
+fig.add_trace(go.Scattermap(
+    lat=df_top40['위도'],
+    lon=df_top40['경도'],
+    mode='markers',
+    marker=dict(size=10, color='pink', opacity=0.6),
+    name='위험도 상위 40%'
+))
+
+# 지도 설정
 fig.update_layout(
-    mapbox_style="open-street-map",
-    mapbox_zoom=12,
-    mapbox_center={"lat": df2_group['시작지점_y'].mean(), "lon": df2_group['시작지점_x'].mean()},
-    height=800,
-    margin={"r":0,"t":0,"l":0,"b":0}
+    map=dict(
+        style="open-street-map",
+        center=dict(lat=df_000['위도'].mean(), lon=df_000['경도'].mean()),
+        zoom=13   # 숫자 높일수록 확대됨 (기존 11 → 13 정도)
+    )
 )
-
-
 
 fig.show()
 
-
 # 가로등 위치 표시
-import plotly.graph_objects as go
-
 fig = go.Figure()
 
 fig.add_trace(go.Scattermapbox(
@@ -866,18 +552,14 @@ fig.add_trace(go.Scattermapbox(
 fig.update_layout(
     mapbox_style="open-street-map",
     mapbox_zoom=12,
-    mapbox_center={"lat": df2_group['시작지점_y'].mean(), "lon": df2_group['시작지점_x'].mean()},
+    mapbox_center={"lat": df3['위도'].mean(), "lon": df3['경도'].mean()},
     height=800,
     margin={"r":0,"t":0,"l":0,"b":0}
 )
 
-
-
 fig.show()
 
-import plotly.graph_objects as go
-
-# 천안시 중심 좌표
+# 천안시 지도 시각화
 center_lat = 36.8195
 center_lon = 127.1135
 
@@ -897,3 +579,24 @@ fig.update_layout(
 )
 
 fig.show()
+
+##################################################################################
+#위험구역 특징
+df_000.info()
+danger_zone = df_000[df_000["위험도(100점)"] >= 60]
+
+# 관심 변수 목록
+cols = [
+    "근처 가로등수",
+    "근처 CCTV개수",
+    "근처 킥라니주차장개수",
+    "300m내_사고다발지역_개수",
+    "가장가까운_사고다발지역_거리(m)",
+    "주변 학교 수",
+    "가장 가까운 학교와의 거리",
+    "광원 등급"
+]
+
+# 위험구역 특징 요약
+danger_features = danger_zone[cols].describe().T
+danger_features[["mean","50%","min","max"]]
