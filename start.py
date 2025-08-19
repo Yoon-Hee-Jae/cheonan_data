@@ -731,7 +731,19 @@ df_top85 = df_000[df_000['위험도(100점)'] >= 60]
 # 40점 이하
 df_top15 = df_000[df_000['위험도(100점)'] <= 40]
 
-
+fig.add_trace(go.Scattermapbox(
+    lat=df_000['위도'],
+    lon=df_000['경도'],
+    mode='markers',
+    marker=dict(
+        size=7,
+        color='yellow',  # 색상 적용
+        opacity=0.5
+        # colorbar 제거
+    ),
+    text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
+    name='가로등 위치'
+))
 
 fig.add_trace(go.Scattermapbox(
     lat=df_top85['위도'],
@@ -746,6 +758,8 @@ fig.add_trace(go.Scattermapbox(
     mode='markers',
     marker=dict(size=10, color='pink', opacity=0.6),
 ))
+
+
 
 
 # 위험도만 시각화
