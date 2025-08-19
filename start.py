@@ -42,6 +42,7 @@ df4_1 = df4[['위도','경도']]
 cctv_2 = pd.read_csv('cctv_2.csv')
 cctv_2 = cctv_2[['위도','경도']]
 cctv = pd.concat([df4_1,cctv_2], ignore_index=True)
+# cctv.to_csv("cctv최종데이터.csv")
 # 데이터 재점검 필요
 
 # 학교 
@@ -56,7 +57,7 @@ df_천안[df_천안['학생수(명)']==0].shape # 54개
 # 학생수가 0인 행의 인덱스 저장
 null_index = df_천안[df_천안['학생수(명)']==0].index
 df_천안 = df_천안[~df_천안.index.isin(null_index)].reset_index()
-
+# df_천안.to_csv('학교최종데이터.csv')
 df5.info()
 
 # 주소를 좌표로 변환하는 함수
@@ -484,7 +485,7 @@ df_top60 = df_new[df_new['위험도(100점)'] >= 55]
 df_top60
 # 40점 이하
 df_top40 = df_new[(df_new['위험도(100점)'] <= 25) ]
-
+# df_new.to_csv("가로등위험도최종데이터.csv")
 fig = go.Figure()
 
 # 가로등 전체 위치
