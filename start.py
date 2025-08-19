@@ -379,3 +379,97 @@ fig.update_layout(
 )
 
 fig.show()
+
+df_000.info()
+
+
+import geopandas as gpd
+from shapely.geometry import Point, Polygon
+
+# 1. 가로등 데이터 → GeoDataFrame 변환
+gdf = gpd.GeoDataFrame(
+    df_000,
+    geometry=gpd.points_from_xy(df_000["경도"], df_000["위도"]),
+    crs="EPSG:4326"
+)
+
+# 2. 사각형 좌표 (예시: 4개 꼭짓점)
+# 반드시 순서대로 이어지도록 작성해야 함
+rect_coords = [
+    (36.78382, 127.0941),  # 왼쪽 아래
+    (36.78655, 127.1684),  # 오른쪽 아래
+    (36.84505, 127.1645),  # 오른쪽 위
+    (36.84310, 127.1072),  # 왼쪽 위
+    (36.78382, 127.0941)   # 다시 시작점 닫기
+]
+
+rectangle = Polygon(rect_coords)
+
+# 3. 사각형 안에 있는 가로등만 필터링
+filtered = gdf[gdf.within(rectangle)]
+
+print(filtered)
+
+
+lat_min, lat_max = 36.78382, 36.84505
+lon_min, lon_max = 127.0941, 127.1684
+
+df_filtered = df_000[
+    (df_000["위도"] >= lat_min) & (df_000["위도"] <= lat_max) &
+    (df_000["경도"] >= lon_min) & (df_000["경도"] <= lon_max)
+]
+
+print(len(df_filtered))
+
+# 60점 이상
+df_top60 = df_filtered[df_filtered['위험도(100점)'] >= 60]
+
+# 40점 이하
+df_top40 = df_filtered[(df_filtered['위험도(100점)'] >= 30) & (df_filtered['위험도(100점)'] <= 40) ]
+
+fig = go.Figure()
+
+# 가로등 전체 위치
+fig.add_trace(go.Scattermap(
+    lat=df_filtered['위도'],
+    lon=df_filtered['경도'],
+    mode='markers',
+    marker=dict(
+        size=7,
+        color='yellow',
+        opacity=0.5
+    ),
+    text=df_filtered['설치형태'] + '<br>위험도: ' + df_filtered['위험도(100점)'].astype(str),
+    name='가로등 위치'
+))
+
+# 위험도 상위 60%
+fig.add_trace(go.Scattermap(
+    lat=df_top60['위도'],
+    lon=df_top60['경도'],
+    mode='markers',
+    marker=dict(size=10, color='orange', opacity=0.6),
+    name='위험도 상위 60%'
+))
+
+# 위험도 상위 40%
+fig.add_trace(go.Scattermap(
+    lat=df_top40['위도'],
+    lon=df_top40['경도'],
+    mode='markers',
+    marker=dict(size=10, color='pink', opacity=0.6),
+    name='위험도 상위 40%'
+))
+
+# 지도 설정
+fig.update_layout(
+    map=dict(
+        style="open-street-map",
+        center=dict(lat=df_000['위도'].mean(), lon=df_000['경도'].mean()),
+        zoom=13   # 숫자 높일수록 확대됨 (기존 11 → 13 정도)
+    )
+)
+
+fig.show()
+
+df_filtered.to_csv('final.csv', index=False)
