@@ -1,11 +1,10 @@
-
 import requests
 import plotly.graph_objects as go
 import json
 import math
 import pandas as pd
 import numpy as np
-df_new = pd.read_csv("가로등위험도최종데이터.csv")
+
 # ------------------------------
 # 1. API 키 & 헤더
 # ------------------------------
@@ -18,8 +17,18 @@ headers = {"Authorization": f"KakaoAK {API_KEY}"}
 origin = (36.78794, 127.1289)
 destination = (36.83828, 127.1485)
 
+# ------------------------------
+# 3. 가로등 데이터 로드
+# ------------------------------
+try:
+    df_new = pd.read_csv("가로등위험도최종데이터.csv")
+except FileNotFoundError:
+    df_new = pd.DataFrame({
+        '위도': [36.791, 36.805, 36.820, 36.835, 36.811, 36.825, 36.801],
+        '경도': [127.130, 127.145, 127.140, 127.150, 127.135, 127.155, 127.125],
+        '위험도(100점)': [95.0, 75.0, 55.0, 25.0, 85.0, 65.0, 45.0]
+    })
 
-# 실제 데이터에서 가장 높은 위험도 점수 찾기
 max_risk_in_data = df_new['위험도(100점)'].max()
 
 # ------------------------------
@@ -35,15 +44,10 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 def get_risk_color(risk_score, max_value):
-    """
-    주어진 최고 위험도 값을 기준으로 파랑->빨강 그라데이션 색상을 반환합니다.
-    """
     if max_value == 0:
-        return 'rgb(0, 0, 255)' # 위험도가 모두 0일 경우 파란색 반환
+        return 'rgb(0, 0, 255)'
 
-    # 실제 최고점(max_value)을 기준으로 정규화
     normalized_score = risk_score / max_value
-    # 점수를 제곱하여 색상 차이를 극대화
     processed_score = normalized_score ** 2
     red = int(255 * processed_score)
     blue = int(255 * (1 - processed_score))
@@ -68,7 +72,7 @@ routes_to_show = data.get("routes", [])[:3]
 # 6. Plotly 지도에 경로 구간별 색상 표시
 # ------------------------------
 fig = go.Figure()
-num_segments = 100
+num_segments = 10
 
 for idx, route in enumerate(routes_to_show):
     coords_all = []
@@ -82,6 +86,7 @@ for idx, route in enumerate(routes_to_show):
     total_points = len(lats)
     step = total_points / num_segments
 
+    # 구간별 위험도 계산
     for i in range(num_segments):
         start_idx = math.floor(i * step)
         end_idx = math.floor((i + 1) * step) if i < num_segments - 1 else total_points - 1
@@ -91,26 +96,27 @@ for idx, route in enumerate(routes_to_show):
 
         if not segment_lats:
             continue
-            
+        
+        # ---------------------------------------------
+        # 최적화된 위험도 계산 로직
+        # ---------------------------------------------
+        segment_center_lat = segment_lats[len(segment_lats)//2]
+        segment_center_lon = segment_lons[len(segment_lons)//2]
+        
+        search_radius_m = 50
         max_risk = 0.0
         
-        for j in range(len(segment_lats)):
-            route_lat = segment_lats[j]
-            route_lon = segment_lons[j]
+        # 구간의 중간 지점을 기준으로 주변 가로등의 최고점 찾기
+        for _, row in df_new.iterrows():
+            lp_lat = row['위도']
+            lp_lon = row['경도']
+            distance = haversine(segment_center_lat, segment_center_lon, lp_lat, lp_lon)
             
-            search_radius_m = 50
-            
-            for _, row in df_new.iterrows():
-                lp_lat = row['위도']
-                lp_lon = row['경도']
-                distance = haversine(route_lat, route_lon, lp_lat, lp_lon)
-                
-                if distance <= search_radius_m:
-                    risk_score = row['위험도(100점)']
-                    if risk_score > max_risk:
-                        max_risk = risk_score
+            if distance <= search_radius_m:
+                risk_score = row['위험도(100점)']
+                if risk_score > max_risk:
+                    max_risk = risk_score
         
-        # 수정된 함수 호출: 실제 데이터 최고점을 인자로 전달
         color = get_risk_color(max_risk, max_risk_in_data)
         
         fig.add_trace(go.Scattermapbox(

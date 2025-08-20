@@ -896,13 +896,6 @@ plt.tight_layout()
 plt.show()
 
 
-df_new
-
-
-
-
-
-
 import requests
 import plotly.graph_objects as go
 import json
