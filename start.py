@@ -564,6 +564,191 @@ fig.update_layout(
 )
 
 fig.show()
+df_new.info()
+
+##############################################################################
+
+import requests
+import plotly.graph_objects as go
+import json
+import math
+import pandas as pd
+import numpy as np
+
+# ------------------------------
+# 1. API 키 & 헤더
+# ------------------------------
+API_KEY = "d222f0f01e3470ce2b8a863cc30b151e"
+headers = {"Authorization": f"KakaoAK {API_KEY}"}
+
+# ------------------------------
+# 2. 출발지 & 도착지 (천안시 예시)
+# ------------------------------
+origin = (36.78794, 127.1289)
+destination = (36.83828, 127.1485)
+
+# ------------------------------
+# 3. 가로등 데이터 로드 (실제 파일로 변경)
+# ------------------------------
+
+
+# ------------------------------
+# 4. 함수: 거리 계산 및 위험도에 따른 색상 반환
+# ------------------------------
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000  # 지구 반지름 (단위: 미터)
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    return R * c
+
+def get_risk_color(risk_score):
+    """
+    위험도 점수에 따라 파랑->빨강 그라데이션 색상을 극명하게 반환합니다.
+    """
+    normalized_score = risk_score / 100.0
+    # 점수를 제곱하여 색상 차이를 극대화
+    processed_score = normalized_score ** 2
+    red = int(255 * processed_score)
+    blue = int(255 * (1 - processed_score))
+    return f'rgb({red}, 0, {blue})'
+
+# ------------------------------
+# 5. 카카오 API 호출
+# ------------------------------
+url = "https://apis-navi.kakaomobility.com/v1/directions"
+params = {
+    "origin": f"{origin[1]},{origin[0]}",
+    "destination": f"{destination[1]},{destination[0]}",
+    "priority": "RECOMMEND",
+    "alternatives": "true",
+    "car_type": 1
+}
+res = requests.get(url, headers=headers, params=params)
+data = res.json()
+routes_to_show = data.get("routes", [])[:3]
+
+# ------------------------------
+# 6. Plotly 지도에 경로 구간별 색상 표시
+# ------------------------------
+fig = go.Figure()
+num_segments = 100
+
+for idx, route in enumerate(routes_to_show):
+    coords_all = []
+    for section in route["sections"]:
+        for road in section["roads"]:
+            coords_all.extend(road["vertexes"])
+    
+    lons = coords_all[0::2]
+    lats = coords_all[1::2]
+    
+    total_points = len(lats)
+    # 각 구간의 길이를 계산합니다.
+    step = total_points / num_segments
+
+    # 100개의 구간을 무조건 생성
+    for i in range(num_segments):
+        start_idx = math.floor(i * step)
+        end_idx = math.floor((i + 1) * step) if i < num_segments - 1 else total_points - 1
+
+        segment_lats = lats[start_idx:end_idx+1]
+        segment_lons = lons[start_idx:end_idx+1]
+
+        if not segment_lats:
+            continue
+            
+        max_risk = 0.0
+        
+        # 각 구간의 최고 위험도 계산
+        for j in range(len(segment_lats)):
+            route_lat = segment_lats[j]
+            route_lon = segment_lons[j]
+            
+            search_radius_m = 50
+            
+            for _, row in df_new.iterrows():
+                lp_lat = row['위도']
+                lp_lon = row['경도']
+                distance = haversine(route_lat, route_lon, lp_lat, lp_lon)
+                
+                if distance <= search_radius_m:
+                    risk_score = row['위험도(100점)']
+                    if risk_score > max_risk:
+                        max_risk = risk_score
+        
+        color = get_risk_color(max_risk)
+        
+        fig.add_trace(go.Scattermapbox(
+            lat=segment_lats,
+            lon=segment_lons,
+            mode="lines",
+            line=dict(width=5, color=color),
+            name=f"경로 {idx+1} 위험도",
+            hoverinfo="none",
+            showlegend=False
+        ))
+
+# ------------------------------
+# 7. 지도 레이아웃 설정
+# ------------------------------
+fig.update_layout(
+    mapbox=dict(
+        style="open-street-map",
+        center=dict(lat=origin[0], lon=origin[1]),
+        zoom=13
+    ),
+    margin={"r":0,"t":0,"l":0,"b":0},
+    title="경로별 구간 위험도 시각화"
+)
+
+fig.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode='lines', line=dict(color='red', width=4), name='고위험 (100점)' ))
+fig.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode='lines', line=dict(color='blue', width=4), name='안전 (0점)' ))
+
+fig.show()
+
+
+
+
+
+
+plt.scatter(lons, lats, color='blue', marker='o')  # color, marker 옵션 선택 가능
+
+# 축 라벨
+plt.xlabel('X축')
+plt.ylabel('Y축')
+plt.title('산점도 예시')
+
+# 격자 표시 (선택)
+plt.grid(True)
+
+# 그래프 출력
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -711,4 +896,151 @@ plt.tight_layout()
 plt.show()
 
 
+df_new
 
+
+
+
+
+
+import requests
+import plotly.graph_objects as go
+import json
+import math
+import pandas as pd
+import numpy as np
+
+# ------------------------------
+# 1. API 키 & 헤더
+# ------------------------------
+API_KEY = "d222f0f01e3470ce2b8a863cc30b151e"
+headers = {"Authorization": f"KakaoAK {API_KEY}"}
+
+# ------------------------------
+# 2. 출발지 & 도착지 (천안시 예시)
+# ------------------------------
+origin = (36.78794, 127.1289)
+destination = (36.83828, 127.1485)
+
+
+# 실제 데이터에서 가장 높은 위험도 점수 찾기
+max_risk_in_data = df_new['위험도(100점)'].max()
+
+# ------------------------------
+# 4. 함수: 거리 계산 및 위험도에 따른 색상 반환
+# ------------------------------
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    return R * c
+
+def get_risk_color(risk_score, max_value):
+    """
+    주어진 최고 위험도 값을 기준으로 파랑->빨강 그라데이션 색상을 반환합니다.
+    """
+    if max_value == 0:
+        return 'rgb(0, 0, 255)' # 위험도가 모두 0일 경우 파란색 반환
+
+    # 실제 최고점(max_value)을 기준으로 정규화
+    normalized_score = risk_score / max_value
+    # 점수를 제곱하여 색상 차이를 극대화
+    processed_score = normalized_score ** 2
+    red = int(255 * processed_score)
+    blue = int(255 * (1 - processed_score))
+    return f'rgb({red}, 0, {blue})'
+
+# ------------------------------
+# 5. 카카오 API 호출
+# ------------------------------
+url = "https://apis-navi.kakaomobility.com/v1/directions"
+params = {
+    "origin": f"{origin[1]},{origin[0]}",
+    "destination": f"{destination[1]},{destination[0]}",
+    "priority": "RECOMMEND",
+    "alternatives": "true",
+    "car_type": 1
+}
+res = requests.get(url, headers=headers, params=params)
+data = res.json()
+routes_to_show = data.get("routes", [])[:3]
+
+# ------------------------------
+# 6. Plotly 지도에 경로 구간별 색상 표시
+# ------------------------------
+fig = go.Figure()
+num_segments = 100
+
+for idx, route in enumerate(routes_to_show):
+    coords_all = []
+    for section in route["sections"]:
+        for road in section["roads"]:
+            coords_all.extend(road["vertexes"])
+    
+    lons = coords_all[0::2]
+    lats = coords_all[1::2]
+    
+    total_points = len(lats)
+    step = total_points / num_segments
+
+    for i in range(num_segments):
+        start_idx = math.floor(i * step)
+        end_idx = math.floor((i + 1) * step) if i < num_segments - 1 else total_points - 1
+
+        segment_lats = lats[start_idx:end_idx+1]
+        segment_lons = lons[start_idx:end_idx+1]
+
+        if not segment_lats:
+            continue
+            
+        max_risk = 0.0
+        
+        for j in range(len(segment_lats)):
+            route_lat = segment_lats[j]
+            route_lon = segment_lons[j]
+            
+            search_radius_m = 50
+            
+            for _, row in df_new.iterrows():
+                lp_lat = row['위도']
+                lp_lon = row['경도']
+                distance = haversine(route_lat, route_lon, lp_lat, lp_lon)
+                
+                if distance <= search_radius_m:
+                    risk_score = row['위험도(100점)']
+                    if risk_score > max_risk:
+                        max_risk = risk_score
+        
+        # 수정된 함수 호출: 실제 데이터 최고점을 인자로 전달
+        color = get_risk_color(max_risk, max_risk_in_data)
+        
+        fig.add_trace(go.Scattermapbox(
+            lat=segment_lats,
+            lon=segment_lons,
+            mode="lines",
+            line=dict(width=5, color=color),
+            name=f"경로 {idx+1} 위험도",
+            hoverinfo="none",
+            showlegend=False
+        ))
+
+# ------------------------------
+# 7. 지도 레이아웃 설정
+# ------------------------------
+fig.update_layout(
+    mapbox=dict(
+        style="open-street-map",
+        center=dict(lat=origin[0], lon=origin[1]),
+        zoom=13
+    ),
+    margin={"r":0,"t":0,"l":0,"b":0},
+    title="경로별 구간 위험도 시각화"
+)
+
+fig.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode='lines', line=dict(color='red', width=4), name='최고 위험' ))
+fig.add_trace(go.Scattermapbox(lat=[None], lon=[None], mode='lines', line=dict(color='blue', width=4), name='최저 위험' ))
+
+fig.show()
