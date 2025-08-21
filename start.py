@@ -42,6 +42,7 @@ df4_1 = df4[['위도','경도']]
 cctv_2 = pd.read_csv('cctv_2.csv')
 cctv_2 = cctv_2[['위도','경도']]
 cctv = pd.concat([df4_1,cctv_2], ignore_index=True)
+# cctv.to_csv("cctv최종데이터.csv")
 # 데이터 재점검 필요
 
 # 학교 
@@ -56,7 +57,7 @@ df_천안[df_천안['학생수(명)']==0].shape # 54개
 # 학생수가 0인 행의 인덱스 저장
 null_index = df_천안[df_천안['학생수(명)']==0].index
 df_천안 = df_천안[~df_천안.index.isin(null_index)].reset_index()
-
+# df_천안.to_csv('학교최종데이터.csv')
 df5.info()
 
 # 주소를 좌표로 변환하는 함수
@@ -228,160 +229,7 @@ plt.xlabel('위험도 점수')
 plt.ylabel('가로등 개수')
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show() # 168개
-
-
-df70 = df_000[df_000['위험도(100점)']>=70]
-df_000.sort_values('위험도(100점)',inplace=True)
-df_000 = df_000.reset_index(drop=True)
-
 ##########################################################################################################
-
-# 가로등 위험도만 시각화 진행
-
-# 60점 이상
-df_top60 = df_000[df_000['위험도(100점)'] >= 60]
-
-# 40점 이하
-df_top40 = df_000[(df_000['위험도(100점)'] >= 30) & (df_000['위험도(100점)'] <= 40) ]
-
-fig = go.Figure()
-
-# 가로등 전체 위치
-fig.add_trace(go.Scattermap(
-    lat=df_000['위도'],
-    lon=df_000['경도'],
-    mode='markers',
-    marker=dict(
-        size=7,
-        color='yellow',
-        opacity=0.5
-    ),
-    text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
-    name='가로등 위치'
-))
-
-# 위험도 상위 60%
-fig.add_trace(go.Scattermap(
-    lat=df_top60['위도'],
-    lon=df_top60['경도'],
-    mode='markers',
-    marker=dict(size=10, color='orange', opacity=0.6),
-    name='위험도 상위 60%'
-))
-
-# 위험도 상위 40%
-fig.add_trace(go.Scattermap(
-    lat=df_top40['위도'],
-    lon=df_top40['경도'],
-    mode='markers',
-    marker=dict(size=10, color='pink', opacity=0.6),
-    name='위험도 상위 40%'
-))
-
-# 지도 설정
-fig.update_layout(
-    map=dict(
-        style="open-street-map",
-        center=dict(lat=df_000['위도'].mean(), lon=df_000['경도'].mean()),
-        zoom=13   # 숫자 높일수록 확대됨 (기존 11 → 13 정도)
-    )
-)
-
-fig.show()
-
-# 가로등 위치 표시
-fig = go.Figure()
-
-fig.add_trace(go.Scattermapbox(
-    lat=df_000['위도'],
-    lon=df_000['경도'],
-    mode='markers',
-    marker=dict(
-        size=7,
-        color='yellow',  # 색상 적용
-        opacity=0.5
-        # colorbar 제거
-    ),
-    text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
-    name='가로등 위치'
-))
-
-# 3) CCTV
-fig.add_trace(go.Scattermapbox(
-    lat=df4['위도'],
-    lon=df4['경도'],
-    mode='markers',
-    marker=dict(size=10, color='green', opacity=0.6),
-    text=df4['설치위치주소'],
-    name='CCTV 위치'
-))
-
-# 4) 학교
-fig.add_trace(go.Scattermapbox(
-    lat=df_천안['lat'],
-    lon=df_천안['lon'],
-    mode='markers',
-    marker=dict(size=10, color='purple', opacity=0.6),
-    text=df_천안['구분'],
-    name='학교 위치'
-))
-
-# 5) 킥라니
-df6 = pd.read_excel('kickrani.xlsx',header=1)
-fig.add_trace(go.Scattermapbox(
-    lat=df6['위도'],
-    lon=df6['경도'],
-    mode='markers',
-    marker=dict(size=10, color='black', opacity=0.6),
-    text=df6['주차가능 대수'].astype(str),
-    name='킥라니 주차장 위치'
-))
-
-# 6) 사고다발구역
-all_zone = pd.read_csv('all_zone.csv',encoding='cp949')
-fig.add_trace(go.Scattermapbox(
-    lat=all_zone['위도'],
-    lon=all_zone['경도'],
-    mode='markers',
-    marker=dict(size=10, color='gray', opacity=0.6),
-    text=all_zone['지점명'],
-    name='사고다발구역'
-))
-
-# 레이아웃
-fig.update_layout(
-    mapbox_style="open-street-map",
-    mapbox_zoom=12,
-    mapbox_center={"lat": df3['위도'].mean(), "lon": df3['경도'].mean()},
-    height=800,
-    margin={"r":0,"t":0,"l":0,"b":0}
-)
-
-fig.show()
-
-# 천안시 지도 시각화
-center_lat = 36.8195
-center_lon = 127.1135
-
-fig = go.Figure(go.Scattermapbox(
-    mode="markers",
-    lat=[center_lat],
-    lon=[center_lon],
-    marker=dict(size=10, color="red"),
-))
-
-fig.update_layout(
-    mapbox_style="open-street-map",
-    mapbox_center={"lat": center_lat, "lon": center_lon},
-    mapbox_zoom=12,
-    height=800,
-    margin={"r":0,"t":0,"l":0,"b":0}
-)
-
-fig.show()
-
-df_000.info()
-
 
 import geopandas as gpd
 from shapely.geometry import Point, Polygon
@@ -409,7 +257,7 @@ rectangle = Polygon(rect_coords)
 filtered = gdf[gdf.within(rectangle)]
 
 print(filtered)
-
+############################여기서부터 df_filtered
 
 lat_min, lat_max = 36.78382, 36.84505
 lon_min, lon_max = 127.0941, 127.1684
@@ -419,6 +267,7 @@ df_filtered = df_000[
     (df_000["경도"] >= lon_min) & (df_000["경도"] <= lon_max)
 ]
 df_filtered = df_filtered.reset_index(drop=True)
+
 print(len(df_filtered))
 
 # 60점 이상
@@ -517,10 +366,8 @@ fig.update_layout(
 fig.show()
 
 # df_filtered.to_csv('final.csv', index=False)
-df_filtered = df_filtered.reset_index(drop=True)
 #####################################################################
 
-df_000
 # 0) 작업 대상 DF
 df_new = df_filtered.copy()
 df_new = df_new.drop('위험도(100점)',axis=1)
@@ -532,64 +379,126 @@ def robust_minmax(s: pd.Series, q_low=0.01, q_high=0.99):
         return pd.Series(0.0, index=s.index)  # 분산이 없으면 0
     n = (s - lo) / (hi - lo)
     return n.clip(0, 1)
+####################################
+
+# 상권 위험도 반영
+df_store = pd.read_csv("소상공인시장진흥공단_상가(상권)정보_충남_202506.csv")
+df_store = df_store[df_store['시군구명'].str.contains("천안", na=False)].reset_index(drop=True)
+df_store = df_store[(df_store['상권업종대분류명']=="음식")|(df_store['상권업종대분류명']=="숙박")]
+df_store.reset_index(drop=True,inplace=True)
+# df_store.to_csv("상권최종데이터.csv")
+import requests
+import pandas as pd
+import time
+
+# 카카오 REST API 키
+KAKAO_API_KEY = 'd222f0f01e3470ce2b8a863cc30b151e'
+
+# 카카오 API 호출 함수
+def get_lat_lon_by_keyword(keyword):
+    url = 'https://dapi.kakao.com/v2/local/search/keyword.json'
+    headers = {"Authorization": f"KakaoAK {KAKAO_KEY}"}
+    params = {'query': keyword, 'size': 1}  # 가장 가까운 1개 결과
+    try:
+        res = requests.get(url, headers=headers, params=params).json()
+        if res['documents']:
+            return float(res['documents'][0]['y']), float(res['documents'][0]['x'])
+    except:
+        pass
+    return None, None
+
+# tqdm으로 진행률 확인하며 lat/lon 생성
+df_store['lat'], df_store['lon'] = zip(*[
+    get_lat_lon_by_keyword(addr) for addr in tqdm(df_store['지번주소'])
+])
+df_store.info()
+df_store.to_csv("상점위도경도.csv")
+
+def haversine(lat1, lon1, lat2, lon2):
+    """
+    두 위도/경도 좌표 사이 거리 계산 (m 단위)
+    """
+    R = 6371000  # 지구 반지름 (m)
+    phi1, phi2 = np.radians(lat1), np.radians(lat2)
+    delta_phi = np.radians(lat2 - lat1)
+    delta_lambda = np.radians(lon2 - lon1)
+
+    a = np.sin(delta_phi/2)**2 + np.cos(phi1)*np.cos(phi2)*np.sin(delta_lambda/2)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+
+    return R * c  # 거리(m)
+
+# 결과 저장할 리스트
+store_count = []
+
+for idx, row in df_new.iterrows():
+    lat_lamp = row['위도']
+    lon_lamp = row['경도']
+
+    # df_store 각 상점과 거리 계산
+    distances = haversine(lat_lamp, lon_lamp, df_store['lat'].values, df_store['lon'].values)
+    
+    # 300m 이내 상점 수
+    count = np.sum(distances <= 300)
+    store_count.append(count)
+# 새로운 열 추가
+df_new['상점_300m'] = store_count
+
+##################################
 
 # 2) 항목별 위험도(0~1)
 r_lamps   = 1 - robust_minmax(df_new["근처 가로등수"])                 # 많을수록 안전
 r_cctv    = 1 - robust_minmax(df_new["근처 CCTV개수"])                # 많을수록 안전
-r_sch_cnt =      robust_minmax(df_new["주변 학교 수"])                # 많을수록 위험
+r_sch_cnt = robust_minmax(df_new["주변 학교 수"])                # 많을수록 위험
 r_sch_dst = 1 - robust_minmax(df_new["가장 가까운 학교와의 거리"])      # 가까울수록 위험
-r_acc_cnt =      robust_minmax(df_new["300m내_사고다발지역_개수"])       # 많을수록 위험
-r_escoot  =      robust_minmax(df_new["근처 킥라니주차장개수"])         # 많을수록 위험
-r_acc_dst = 1 - robust_minmax(df_new["가장가까운_사고다발지역_거리(m)"])  # 가까울수록 위험
 r_light   = 1 - (pd.to_numeric(df_new["광원 등급"], errors="coerce") / 5.0)  # 등급 높을수록 안전
-
-# 3) 가중치(총 100점)
+r_escoot  = robust_minmax(df_new["근처 킥라니주차장개수"])         # 많을수록 위험
+r_store = robust_minmax(df_new["상점_300m"])
+# 3) 가중치(총 100점, 6개 항목 동일)
 W = {
-    "lamps":   12.5,
-    "cctv":    12.5,
-    "sch_cnt": 12.5,
-    "sch_dst": 12.5,
-    "escoot":  12.5,
-    "acc_cnt": 12.5,
-    "acc_dst": 12.5,
-    "light":   12.5
+    "lamps":   100 / 7,  # 약 16.6667
+    "cctv":    100 / 7,
+    "sch_cnt": 100 / 7,
+    "sch_dst": 100 / 7,
+    "light":   100 / 7,
+    "escoot": 100/7,
+    "store" : 100/7
 }
 
-# 4) 최종 위험도(0~100) 계산 및 반올림(선택)
+# 4) 최종 위험도 계산
 df_new["위험도(100점)"] = (
     r_lamps   * W["lamps"]   +
     r_cctv    * W["cctv"]    +
     r_sch_cnt * W["sch_cnt"] +
     r_sch_dst * W["sch_dst"] +
-    r_escoot  * W["escoot"]  +
-    r_acc_cnt * W["acc_cnt"] +
-    r_acc_dst * W["acc_dst"] +
-    r_light   * W["light"]
+    r_light   * W["light"] +
+    r_escoot  * W["escoot"] +
+    r_store * W['store']
 ).round(2)
 
 sns.histplot(df_new['위험도(100점)'], bins=30, kde=True)  # kde=True: 밀도선 추가
 plt.title("위도 히스토그램")
 plt.show()
-
+df_new.info()
 # 60점 이상
-df_top60 = df_new[df_new['위험도(100점)'] >= 60]
-
+df_top60 = df_new[df_new['위험도(100점)'] >= 55]
+df_top60
 # 40점 이하
-df_top40 = df_new[(df_new['위험도(100점)'] <= 30) ]
-
+df_top40 = df_new[(df_new['위험도(100점)'] <= 25) ]
+# df_new.to_csv("가로등위험도최종데이터.csv")
 fig = go.Figure()
 
 # 가로등 전체 위치
 fig.add_trace(go.Scattermap(
-    lat=df_filtered['위도'],
-    lon=df_filtered['경도'],
+    lat=df_new['위도'],
+    lon=df_new['경도'],
     mode='markers',
     marker=dict(
         size=7,
         color='yellow',
         opacity=0.5
     ),
-    text=df_filtered['설치형태'] + '<br>위험도: ' + df_filtered['위험도(100점)'].astype(str),
+    text=df_new['설치형태'] + '<br>위험도: ' + df_new['위험도(100점)'].astype(str),
     name='가로등 위치'
 ))
 
@@ -599,6 +508,7 @@ fig.add_trace(go.Scattermap(
     lon=df_top60['경도'],
     mode='markers',
     marker=dict(size=10, color='orange', opacity=0.6),
+    text=df_top60['위험도(100점)'],
     name='위험도 상위 60%'
 ))
 
@@ -638,7 +548,7 @@ fig.add_trace(go.Scattermap(
     lat=all_zone['위도'],
     lon=all_zone['경도'],
     mode='markers',
-    marker=dict(size=10, color='gray', opacity=0.6),
+    marker=dict(size=10, color='red', opacity=0.6),
     text=all_zone['지점명'],
     name='사고다발구역'
 ))
@@ -674,7 +584,7 @@ cat_col = "광원 등급"
 
 # ✅ 2. 위험/안전 구역 분리
 df_risk = df_000[df_000["위험도(100점)"] >= 60]
-df_safe = df_000[df_000["위험도(100점)"] <= 40]
+df_safe = df_000[df_000["위험도(100점)"] <= 30]
 
 # ✅ 평균 + 95% 신뢰구간 계산 함수
 def mean_ci(df, cols, confidence=0.95):
@@ -799,3 +709,6 @@ axes[3].legend(wedges, safe_light.index, title="광원등급", loc="best")
 
 plt.tight_layout()
 plt.show()
+
+
+

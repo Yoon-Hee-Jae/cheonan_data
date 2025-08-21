@@ -16,7 +16,7 @@ df4 = pd.read_csv('cctv최종데이터.csv')
 df6 = pd.read_excel('kickrani.xlsx', header=1)
 df5 = pd.read_csv('학교최종데이터.csv')
 df_000 = pd.read_csv('가로등위험도최종데이터.csv')
-
+df_store = pd.read_csv('상권최종데이터.csv')
 fig = go.Figure()
 
 
@@ -29,6 +29,15 @@ fig.add_trace(go.Scattermapbox(
     marker=dict(size=7, color='yellow', opacity=0.5),
     text=df_000['설치형태'] + '<br>위험도: ' + df_000['위험도(100점)'].astype(str),
     name='가로등 위치'
+))
+
+# 상권
+fig.add_trace(go.Scattermapbox(
+    lat=df_store['위도'],
+    lon=df_store['경도'],
+    mode='markers',
+    marker=dict(size=7, color='yellow', opacity=0.5),
+    name='위치'
 ))
 
 # CCTV
