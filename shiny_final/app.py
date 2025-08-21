@@ -38,7 +38,6 @@ MAP_HEIGHT = 720
 # ------------------------
 DASH_FONT = "Pretendard, Pretendard Variable, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Helvetica Neue', Arial, sans-serif"
 
-# (기존 일반 팔레트는 보존하되, Top3에는 아래 커스텀 팔레트 사용)
 BASE_CLUSTER_COLORS = [
     "#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00",
     "#a65628", "#f781bf", "#999999", "#66c2a5", "#e78ac3",
@@ -50,6 +49,12 @@ SAFE_CLUSTER_COLORS = [
     "#34d399", "#22d3ee", "#4ade80", "#2dd4bf", "#60a5fa"
 ]
 OVERRIDE_POINT_COLORS = {9: "#ff1493"}
+
+# ---- 요청: Top3 고정 팔레트 + 고정 이름
+RISK_TOP3_COLORS = {1: "#D32F2F", 2: "#F57C00", 3: "#C2185B"}  # 위험 1~3위
+SAFE_TOP3_COLORS = {1: "#388E3C", 2: "#7CB342", 3: "#009688"}  # 안전 1~3위
+RISK_TOP3_NAMES  = {1: "주택존", 2: "상권존", 3: "대학존"}
+SAFE_TOP3_NAMES  = {1: "마천루존", 2: "공터존", 3: "노피플존"}
 
 def cluster_point_color(idx: int) -> str:
     if idx in OVERRIDE_POINT_COLORS:
@@ -66,13 +71,6 @@ def hex_to_rgb(hex_color: str):
 def rgba_str(hex_color: str, alpha: float) -> str:
     r, g, b = hex_to_rgb(hex_color)
     return f"rgba({r},{g},{b},{alpha})"
-
-# === (신규) Top3 전용 이름과 색상 ===
-RISK_LABELS = {1: "주택존", 2: "상권존", 3: "대학존"}
-SAFE_LABELS = {1: "마천루존", 2: "공터존", 3: "노피플존"}
-
-RISK_COLORS = {1: "#D32F2F", 2: "#F57C00", 3: "#C2185B"}  # 진한 빨강, 주황, 붉은 보라
-SAFE_COLORS = {1: "#388E3C", 2: "#7CB342", 3: "#009688"}  # 짙은 녹색, 연두, 청록
 
 # ---- 경로 페이지 유틸: 거리/색상 ----
 def haversine(lat1, lon1, lat2, lon2):
@@ -242,7 +240,7 @@ app_ui = ui.page_fluid(
         ui.div({"class":"h2"}, "🚗 🚙 🛻 🚐 🚕 🚖 🚓 🚔 🚑 🚒 🚌 🚎 🚍 🚛 🚚 🚜 🏎️ 🚘 🚖 🚔 🚍 🚙 🚗")
     ),
 
-    # 네비게이션 (+ 신규 페이지)
+    # 네비게이션
     ui.div({"class":"nav-bar"},
         ui.input_action_button("nav_home",  "안전 등급 지도", class_="nav-btn"),
         ui.input_action_button("nav_feat",  "시설위치",   class_="nav-btn"),
@@ -657,7 +655,7 @@ def server(input, output, session):
         )
         return fig
 
-    # ===== 클러스터 계산: 위험 Top3 + 안전 Top3 (랭크맵 포함) =====
+    # ===== 클러스터 계산: 위험 Top3 + 안전 Top3 (rank_map 포함) =====
     @reactive.Calc
     def cluster_info():
         base = scored_df()
@@ -669,27 +667,27 @@ def server(input, output, session):
 
         # 위험: 평균 높은 순 → 상위 3개
         if len(df_risk) >= 2:
-            risk_lab, risk_cen, risk_k, risk_sum, _ = cluster_kmeans_auto(df_risk, k_min=5, k_max=10, sort_ascending=False)
-            risk_top_df = risk_sum.head(3).reset_index(drop=True)
-            risk_top3 = set(risk_top_df["cluster"].astype(int).tolist())
-            risk_rank_map = {int(row["cluster"]): i+1 for i, row in risk_top_df.iterrows()}
+            risk_lab, risk_cen, risk_k, risk_sum, risk_rank = cluster_kmeans_auto(
+                df_risk, k_min=5, k_max=10, sort_ascending=False
+            )
+            risk_top3 = set(risk_sum.head(3)["cluster"].astype(int).tolist())
         else:
-            risk_lab, risk_cen, risk_sum, risk_top3, risk_rank_map = None, None, pd.DataFrame(), set(), {}
+            risk_lab, risk_cen, risk_sum, risk_rank, risk_top3 = None, None, pd.DataFrame(), {}, set()
 
         # 안전: 평균 낮은 순 → 상위 3개
         if len(df_safe) >= 2:
-            safe_lab, safe_cen, safe_k, safe_sum, _ = cluster_kmeans_auto(df_safe, k_min=5, k_max=10, sort_ascending=True)
-            safe_top_df = safe_sum.head(3).reset_index(drop=True)
-            safe_top3 = set(safe_top_df["cluster"].astype(int).tolist())
-            safe_rank_map = {int(row["cluster"]): i+1 for i, row in safe_top_df.iterrows()}
+            safe_lab, safe_cen, safe_k, safe_sum, safe_rank = cluster_kmeans_auto(
+                df_safe, k_min=5, k_max=10, sort_ascending=True
+            )
+            safe_top3 = set(safe_sum.head(3)["cluster"].astype(int).tolist())
         else:
-            safe_lab, safe_cen, safe_sum, safe_top3, safe_rank_map = None, None, pd.DataFrame(), set(), {}
+            safe_lab, safe_cen, safe_sum, safe_rank, safe_top3 = None, None, pd.DataFrame(), {}, set()
 
         return {
             "ok": True,
             "base": base,
-            "risk": {"df_lab": risk_lab, "centroids": risk_cen, "summary": risk_sum, "top3": risk_top3, "rank_map": risk_rank_map},
-            "safe": {"df_lab": safe_lab, "centroids": safe_cen, "summary": safe_sum, "top3": safe_top3, "rank_map": safe_rank_map},
+            "risk": {"df_lab": risk_lab, "centroids": risk_cen, "summary": risk_sum, "top3": risk_top3, "rank_map": risk_rank},
+            "safe": {"df_lab": safe_lab, "centroids": safe_cen, "summary": safe_sum, "top3": safe_top3, "rank_map": safe_rank},
         }
 
     # ===== 페이지2: 위험구역 및 안전구역 =====
@@ -736,7 +734,7 @@ def server(input, output, session):
 
         fig = go.Figure()
 
-        # 배경 가로등 — 더 진하게
+        # (변경) 배경 가로등 — 더 진하게
         fig.add_trace(go.Scattermapbox(
             lat=base["위도"], lon=base["경도"], mode="markers",
             marker=dict(size=8, color="#f6c945", opacity=0.60),
@@ -748,65 +746,95 @@ def server(input, output, session):
         t_idx = 1
         risk_indices, safe_indices = [], []
 
-        # 위험 Top3: 점+영역 (커스텀 이름/색)
+        # === 위험 Top3: 점+영역+라벨 ===
         r = info["risk"]
         if r["df_lab"] is not None and len(r["df_lab"]):
+            cent = r["centroids"] if r["centroids"] is not None else pd.DataFrame()
             for c, g in r["df_lab"].groupby("cluster"):
                 c = int(c)
                 if c not in r["top3"]:
                     continue
-                rank = r["rank_map"].get(c)
-                label = f"위험 {rank}위 · {RISK_LABELS.get(rank, f'위험존{rank}')}"
-                col = RISK_COLORS.get(rank, "#D32F2F")
+                rank = r["rank_map"].get(c)  # 1,2,3,...
+                col  = RISK_TOP3_COLORS.get(rank, "#D32F2F")
+                label_name = RISK_TOP3_NAMES.get(rank, f"위험 {rank}위")
 
+                # 포인트
                 fig.add_trace(go.Scattermapbox(
                     lat=g["위도"], lon=g["경도"], mode="markers",
                     marker=dict(size=10, opacity=0.9, color=col),
-                    name=label,
-                    text=(label
+                    name=f"위험 {rank}위 · {label_name}",
+                    text=(f"{label_name}"
                           + "<br>설치형태: " + g["설치형태"].astype(str)
                           + "<br>위험도: " + g["위험도(100점)"].astype(str)),
                     hovertemplate="%{text}<extra></extra>", visible=True
                 ))
                 risk_indices.append(t_idx); t_idx += 1
 
+                # 영역
                 polys = concave_polygons(g["경도"].values, g["위도"].values, alpha=None)
                 for (plon, plat) in polys:
                     fig.add_trace(go.Scattermapbox(
                         lon=plon, lat=plat, mode="lines", fill="toself",
                         line=dict(width=2, color=col), fillcolor=rgba_str(col, 0.22),
-                        name=f"{label} 영역", hoverinfo="skip", visible=True
+                        name=f"{label_name} 영역", hoverinfo="skip", visible=True
                     ))
                     risk_indices.append(t_idx); t_idx += 1
 
-        # 안전 Top3: 점+영역 (커스텀 이름/색)
+                # 라벨(중심)
+                row = cent[cent["cluster"]==c]
+                if len(row):
+                    cy, cx = float(row["위도"].iloc[0]), float(row["경도"].iloc[0])
+                    fig.add_trace(go.Scattermapbox(
+                        lat=[cy], lon=[cx], mode="text",
+                        text=[label_name],
+                        textfont=dict(size=18, family=DASH_FONT, color="#111111"),
+                        hoverinfo="skip", showlegend=False, visible=True
+                    ))
+                    risk_indices.append(t_idx); t_idx += 1
+
+        # === 안전 Top3: 점+영역+라벨 ===
         s = info["safe"]
         if s["df_lab"] is not None and len(s["df_lab"]):
+            cent = s["centroids"] if s["centroids"] is not None else pd.DataFrame()
             for c, g in s["df_lab"].groupby("cluster"):
                 c = int(c)
                 if c not in s["top3"]:
                     continue
                 rank = s["rank_map"].get(c)
-                label = f"안전 {rank}위 · {SAFE_LABELS.get(rank, f'안전존{rank}')}"
-                col = SAFE_COLORS.get(rank, "#388E3C")
+                col  = SAFE_TOP3_COLORS.get(rank, "#388E3C")
+                label_name = SAFE_TOP3_NAMES.get(rank, f"안전 {rank}위")
 
+                # 포인트
                 fig.add_trace(go.Scattermapbox(
                     lat=g["위도"], lon=g["경도"], mode="markers",
                     marker=dict(size=10, opacity=0.9, color=col),
-                    name=label,
-                    text=(label
+                    name=f"안전 {rank}위 · {label_name}",
+                    text=(f"{label_name}"
                           + "<br>설치형태: " + g["설치형태"].astype(str)
                           + "<br>위험도: " + g["위험도(100점)"].astype(str)),
                     hovertemplate="%{text}<extra></extra>", visible=True
                 ))
                 safe_indices.append(t_idx); t_idx += 1
 
+                # 영역
                 polys = concave_polygons(g["경도"].values, g["위도"].values, alpha=None)
                 for (plon, plat) in polys:
                     fig.add_trace(go.Scattermapbox(
                         lon=plon, lat=plat, mode="lines", fill="toself",
                         line=dict(width=2, color=col), fillcolor=rgba_str(col, 0.22),
-                        name=f"{label} 영역", hoverinfo="skip", visible=True
+                        name=f"{label_name} 영역", hoverinfo="skip", visible=True
+                    ))
+                    safe_indices.append(t_idx); t_idx += 1
+
+                # 라벨(중심)
+                row = cent[cent["cluster"]==c]
+                if len(row):
+                    cy, cx = float(row["위도"].iloc[0]), float(row["경도"].iloc[0])
+                    fig.add_trace(go.Scattermapbox(
+                        lat=[cy], lon=[cx], mode="text",
+                        text=[label_name],
+                        textfont=dict(size=18, family=DASH_FONT, color="#111111"),
+                        hoverinfo="skip", showlegend=False, visible=True
                     ))
                     safe_indices.append(t_idx); t_idx += 1
 
@@ -848,7 +876,7 @@ def server(input, output, session):
         )
         return fig
 
-    # 우측 카드: 위험 Top3 + 안전 Top3 (총 6장) — 커스텀 이름/색 반영
+    # 우측 카드: 위험 Top3 + 안전 Top3 (총 6장, 이름 치환)
     @output
     @render.ui
     def rankcards():
@@ -862,14 +890,14 @@ def server(input, output, session):
             )
 
         cards = []
-        # 위험 Top3 (avg 내림차순)
-        rsum = info["risk"]["summary"]
+        # 위험 Top3
+        rsum = info["risk"]["summary"]; rrank = info["risk"]["rank_map"]
         if rsum is not None and len(rsum):
-            for i, row in rsum.head(3).reset_index(drop=True).iterrows():
-                rank = i+1
+            top = rsum.head(3).reset_index(drop=True)
+            for _, row in top.iterrows():
+                cidx = int(row["cluster"]); rank = rrank.get(cidx, 0)
+                name = RISK_TOP3_NAMES.get(rank, f"위험 {rank}위")
                 score = float(row["avg"]); n = int(row["n"])
-                name = RISK_LABELS.get(rank, f"위험존{rank}")
-                col = RISK_COLORS.get(rank, "#D32F2F")
                 cards.append(
                     ui.div({"class":"rank-card"},
                         ui.div({"class":"rank-badge badge-risk"}, f"위험 {rank}위"),
@@ -877,28 +905,28 @@ def server(input, output, session):
                         ui.div({"class":"rank-score"}, f"{score:.1f}점"),
                         ui.div({"class":"rank-sub"}, f"표본 {n}개 · 평균 위험도"),
                         ui.div({"class":"chips"},
-                            ui.span({"class":"chip", "style": f"background:{col}; color:#fff;"}, name),
-                            ui.span({"class":"chip"}, f"Rank {rank}")
+                            ui.span({"class":"chip"}, f"n={n}"),
+                            ui.span({"class":"chip"}, f"rank={rank}")
                         )
                     )
                 )
-        # 안전 Top3 (avg 오름차순)
-        ssum = info["safe"]["summary"]
+        # 안전 Top3
+        ssum = info["safe"]["summary"]; srank = info["safe"]["rank_map"]
         if ssum is not None and len(ssum):
-            for i, row in ssum.head(3).reset_index(drop=True).iterrows():
-                rank = i+1
+            top = ssum.head(3).reset_index(drop=True)
+            for _, row in top.iterrows():
+                cidx = int(row["cluster"]); rank = srank.get(cidx, 0)
+                name = SAFE_TOP3_NAMES.get(rank, f"안전 {rank}위")
                 score = float(row["avg"]); n = int(row["n"])
-                name = SAFE_LABELS.get(rank, f"안전존{rank}")
-                col = SAFE_COLORS.get(rank, "#388E3C")
                 cards.append(
                     ui.div({"class":"rank-card"},
                         ui.div({"class":"rank-badge badge-safe"}, f"안전 {rank}위"),
                         ui.div({"class":"rank-title"}, f"{name}"),
                         ui.div({"class":"rank-score"}, f"{score:.1f}점"),
-                        ui.div({"class":"rank-sub"}, f"표본 {n}개 · 평균 위험도(낮을수록 안전)"),
+                        ui.div({"class":"rank-sub"}, "표본 {}개 · 평균 위험도(낮을수록 안전)".format(n)),
                         ui.div({"class":"chips"},
-                            ui.span({"class":"chip", "style": f"background:{col}; color:#fff;"}, name),
-                            ui.span({"class":"chip"}, f"Rank {rank}")
+                            ui.span({"class":"chip"}, f"n={n}"),
+                            ui.span({"class":"chip"}, f"rank={rank}")
                         )
                     )
                 )
@@ -921,7 +949,7 @@ def server(input, output, session):
                         ui.input_select("route_origin", "출발지", list(ROUTE_PLACES.keys()), selected="천안역"),
                         ui.input_select("route_dest",   "도착지", list(ROUTE_PLACES.keys()), selected="단국대"),
                         ui.input_action_button("route_btn", "경로 확인", class_="nav-btn"),
-                        # 색상 그라데이션 바
+                        # 구간 색상 기준 그라데이션 바
                         ui.div({"class":"legend-card"},
                             ui.div({"class":"legend-title"}, "구간 색상 기준"),
                             ui.div({"class":"legend-wrap"},
