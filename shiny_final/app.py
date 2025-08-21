@@ -244,7 +244,7 @@ app_ui = ui.page_fluid(
 
     # 네비게이션 (+ 신규 페이지)
     ui.div({"class":"nav-bar"},
-        ui.input_action_button("nav_home",  "위험 점수 신뢰도", class_="nav-btn"),
+        ui.input_action_button("nav_home",  "안전 등급 지도", class_="nav-btn"),
         ui.input_action_button("nav_feat",  "시설위치",   class_="nav-btn"),
         ui.input_action_button("nav_zone",  "위험구역 및 안전구역", class_="nav-btn"),
         ui.input_action_button("nav_route", "야간운전 위험구간 알림", class_="nav-btn"),
